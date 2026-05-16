@@ -1,0 +1,88 @@
+{
+  "system": "Agentic Tool-Calling Pipeline",
+  "audience": "Engineers building or integrating multi-agent AI systems",
+  "language": "en",
+  "modes": ["single_agent", "multi_agent"],
+  "mode_descriptions": {
+    "single_agent": "One orchestrator LLM handles all tool calls directly",
+    "multi_agent": "Orchestrator delegates to specialized sub-agents; each has its own tool set"
+  },
+  "nodes": [
+    {
+      "id": "user", "role": "user",
+      "position": "left: 2%; top: 40%",
+      "label": { "default": "User" },
+      "tech":  { "default": "Chat UI · API" },
+      "port":  { "default": "app.example.com" }
+    },
+    {
+      "id": "orch", "role": "orch",
+      "position": "left: 24%; top: 40%",
+      "label": { "single_agent": "Agent (Claude)", "multi_agent": "Orchestrator Agent" },
+      "tech":  { "single_agent": "Claude Sonnet 4.6 · all tools", "multi_agent": "Claude Opus 4.6 · routing only" },
+      "port":  { "default": "api.anthropic.com" }
+    },
+    {
+      "id": "search", "role": "embed",
+      "position": "left: 50%; top: 10%",
+      "label": { "single_agent": "Search Tool", "multi_agent": "Search Agent" },
+      "tech":  { "single_agent": "tool_use · web_search", "multi_agent": "Claude Haiku · search tools" },
+      "port":  { "default": "search API" }
+    },
+    {
+      "id": "code", "role": "compute",
+      "position": "left: 50%; top: 70%",
+      "label": { "single_agent": "Code Exec Tool", "multi_agent": "Code Agent" },
+      "tech":  { "single_agent": "tool_use · sandbox", "multi_agent": "Claude Sonnet · code tools" },
+      "port":  { "default": "sandbox" }
+    },
+    {
+      "id": "memory", "role": "vector",
+      "position": "left: 76%; top: 40%",
+      "label": { "default": "Vector Memory" },
+      "tech":  { "default": "Pinecone · conversation context" },
+      "port":  { "default": "pinecone.io" }
+    }
+  ],
+  "flows": [
+    {
+      "key": "tool_call",
+      "name": "Search + Synthesize",
+      "purpose": "User asks a question that requires web search. Agent retrieves, stores in memory, and synthesizes.",
+      "step_count": 7,
+      "step_outline": [
+        "user → orch     : user message with question",
+        "orch → memory   : retrieve relevant prior context",
+        "memory → orch   : context chunks",
+        "orch → search   : tool_use / delegate to search agent",
+        "search → orch   : search results",
+        "orch → memory   : store new results for future",
+        "orch → user     : synthesized answer with citations"
+      ]
+    },
+    {
+      "key": "code_exec",
+      "name": "Code Execution",
+      "purpose": "User asks to analyze data or run code. Agent writes and executes in a sandbox.",
+      "step_count": 5,
+      "step_outline": [
+        "user → orch     : 'analyze this CSV'",
+        "orch → code     : tool_use code_execution / delegate to code agent",
+        "code → code     : execute in sandbox, capture output",
+        "code → orch     : execution result + stdout",
+        "orch → user     : formatted analysis with code snippet"
+      ]
+    },
+    {
+      "key": "multi_tool",
+      "name": "Multi-Tool Chain",
+      "purpose": "Complex query requiring search, code, and memory in sequence.",
+      "step_count": 8
+    }
+  ],
+  "lessons": [
+    "Single-agent vs multi-agent is an excellent mode pair: same user story, different internal routing. The orchestrator node changes from 'does everything' to 'routes to specialists'.",
+    "Memory (vector store) appears in most flows as both a read (retrieve context) and a write (store results). This makes it a central participant even when it's not the protagonist.",
+    "Tool calls and agent delegation look identical from the user's perspective. The mode toggle reveals the internal difference."
+  ]
+}

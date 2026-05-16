@@ -1,0 +1,111 @@
+{
+  "system": "Eskadra Bielik · Misja 2 RAG",
+  "audience": "Workshop attendees, Polish AI community",
+  "language": "pl",
+  "modes": ["offline", "online"],
+  "mode_descriptions": {
+    "offline": "Docker Compose; all services local; no internet after initial 6GB model download",
+    "online": "Google Cloud Run + BigQuery Vector Search; NVIDIA L4 GPU for LLM"
+  },
+  "nodes": [
+    {
+      "id": "user", "role": "user",
+      "position": "left: 2%; top: 38%",
+      "label":  { "default": "User (Browser)" },
+      "tech":   { "default": "HTML/JS · SPA" },
+      "port":   { "offline": ":3000", "online": "Cloud Run URL" }
+    },
+    {
+      "id": "orch", "role": "orch",
+      "position": "left: 26%; top: 38%",
+      "label":  { "default": "Orchestration" },
+      "tech":   { "default": "Python 3.11 · FastAPI · uvicorn" },
+      "port":   { "offline": ":8080 → :3000", "online": "Cloud Run · :8080" }
+    },
+    {
+      "id": "embed", "role": "embed",
+      "position": "left: 52%; top: 8%",
+      "label":  { "default": "EmbeddingGemma" },
+      "tech":   { "offline": "Ollama · 300M · 768-dim", "online": "Cloud Run · CPU · 8GB" },
+      "port":   { "offline": ":11434", "online": "Cloud Run (Bearer)" }
+    },
+    {
+      "id": "vector", "role": "vector",
+      "position": "left: 52%; top: 70%",
+      "label":  { "offline": "Qdrant", "online": "BigQuery" },
+      "tech":   { "offline": "qdrant/qdrant v1.12.5 · hotel_rules", "online": "Vector Search · rag_dataset.hotel_rules" },
+      "port":   { "offline": ":6333 · COSINE", "online": "API · COSINE" }
+    },
+    {
+      "id": "bielik", "role": "compute",
+      "position": "left: 78%; top: 38%",
+      "label":  { "default": "Bielik LLM" },
+      "tech":   { "offline": "Ollama · Bielik 4.5B Q8_0", "online": "Cloud Run · NVIDIA L4 · 16GB" },
+      "port":   { "offline": ":11434", "online": "Cloud Run (Bearer)" }
+    },
+    {
+      "id": "seed", "role": "seed",
+      "position": "left: 2%; top: 8%",
+      "label":  { "default": "Seed" },
+      "tech":   { "default": "curlimages/curl · oneshot" },
+      "port":   { "default": "hotel_rules.csv" },
+      "modes":  ["offline"]
+    }
+  ],
+  "flows": [
+    {
+      "key": "ask",
+      "name": "RAG Query (POST /ask)",
+      "purpose": "Main pipeline. Demonstrates the augmentation step: query → embed → search → LLM-with-context.",
+      "step_count": 8,
+      "step_outline": [
+        "user → orch  : POST /ask {query, limit, temperature}",
+        "orch → embed : POST /api/embed",
+        "embed → orch : 768-dim vector",
+        "orch → vector: query_points / VECTOR_SEARCH",
+        "vector → orch: top-k hits with scores",
+        "orch → bielik: POST /api/chat with system+user (or single user online)",
+        "bielik → orch: assistant message",
+        "orch → user  : {answer, context_used, context_scores}"
+      ]
+    },
+    {
+      "key": "ask_direct",
+      "name": "Direct Query (POST /ask_direct)",
+      "purpose": "Baseline. Same model, same temperature, NO context. Shows hallucination.",
+      "step_count": 4,
+      "step_outline": [
+        "user → orch  : POST /ask_direct {query, temperature}",
+        "orch → bielik: POST /api/chat (no context attached)",
+        "bielik → orch: potentially hallucinated answer",
+        "orch → user  : {answer} (no context_used)"
+      ]
+    },
+    {
+      "key": "ingest",
+      "name": "CSV Ingest (POST /ingest)",
+      "purpose": "Bulk-load 38 hotel rules. Embedding + upsert per row.",
+      "step_count": 4
+    },
+    {
+      "key": "ingest_text",
+      "name": "Live Ingest (POST /ingest_text)",
+      "purpose": "Workshop demo: add a single rule and show the next /ask uses it. No restart.",
+      "step_count": 4
+    },
+    {
+      "key": "seed",
+      "name": "Auto Seed (startup)",
+      "purpose": "One-shot container loads CSV via /ingest then exits. Offline only.",
+      "step_count": 4,
+      "only_mode": "offline"
+    }
+  ],
+  "lessons": [
+    "Vector DB is the ONLY node whose label changes between modes. Everything else just swaps tech and port strings.",
+    "The seed node is mode-exclusive (offline only). The seed FLOW has onlyMode='offline' so users switching modes don't see a broken state.",
+    "Both LLM and embedding share port 11434 in offline mode because both run inside one Ollama container. In online mode they're separate Cloud Run services with different URLs.",
+    "Bielik's prompt structure differs by mode: offline uses {system, user} roles, online uses a single user message. This is a non-obvious mode difference worth highlighting on step 6 of the ask flow.",
+    "Score scales differ too: Qdrant returns similarity (0-1, higher = better), BigQuery returns distance (0-2, lower = better). Conversion max(0, 1-distance) happens in orchestration so the UI sees one scale."
+  ]
+}

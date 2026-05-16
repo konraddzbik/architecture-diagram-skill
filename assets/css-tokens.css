@@ -1,0 +1,107 @@
+/* ============================================================================
+   architecture-diagrams · design tokens
+   Drop these into :root to re-skin the template. Each block can be swapped
+   independently — change just the brand block to repaint accents, or just
+   the palette block to flip light/dark.
+   ============================================================================ */
+
+:root {
+
+  /* ─── PALETTE ─── dark by default. To go light: invert these 9 values.
+     Test: text contrast on bg ≥ 4.5:1; panel-2 distinguishable from panel. */
+  --bg:        #0a0d12;   /* page background */
+  --bg-2:      #0f1419;   /* canvas inner background */
+  --panel:     #121821;   /* card surfaces */
+  --panel-2:   #182030;   /* elevated cards (nodes) */
+  --border:    #1f2937;   /* default 1px line */
+  --border-2:  #2a3650;   /* hover/elevated line */
+  --text:      #e6edf7;   /* primary text */
+  --muted:     #8492a8;   /* secondary text */
+  --dim:       #5a6679;   /* tertiary text, footnotes */
+
+  /* ─── COMPONENT ROLES ─── 6 slots. Assign per node via data-role.
+     The CSS variable name is referenced from JS step `color` fields. */
+  --c-user:        #46f9b8;   /* mint     — clients, end users */
+  --c-orch:        #6aa9ff;   /* sky      — API gateways, orchestrators */
+  --c-compute:      #ff6b8a;   /* magenta  — LLMs, ML, expensive compute */
+  --c-embed:       #ffc14d;   /* amber    — preprocessors, transformers */
+  --c-vector:      #b388ff;   /* violet   — databases, caches */
+  --c-seed:        #ff9457;   /* orange   — cron, one-shot, jobs */
+
+  /* ─── BRAND ─── for the H1 gradient and a few accent glows.
+     Keep two values that look good together. */
+  --brand-violet:  #a201ff;
+  --brand-mint:    #46f9b8;
+
+  /* ─── SHAPE ─── corner radii */
+  --radius:        14px;
+  --radius-sm:     8px;
+
+  /* ─── DEPTH ─── two shadow tiers */
+  --shadow-soft:   0 10px 30px rgba(0,0,0,.45);
+  --shadow-pop:    0 0 0 1px rgba(255,255,255,.04), 0 18px 50px rgba(0,0,0,.55);
+
+  /* ─── TYPE ─── one display, one mono. Both load from Google Fonts in the
+     <head>. To use system fonts (no network): drop the <link> and these will
+     fall back gracefully via the system-ui stack. */
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+
+/* ============================================================================
+   ALTERNATE THEMES
+   The template has a built-in light/dark toggle (body.light class).
+   To customize the light palette, override the values below in the template's
+   body.light { ... } block. To make light the DEFAULT, add class="light" to
+   <body> in the template or set localStorage "arch-theme" = "light".
+   ============================================================================ */
+
+/* ──── Light theme reference (already baked into template.html as body.light) ────
+body.light {
+  --bg:        #f6f7fa;
+  --bg-2:      #ffffff;
+  --panel:     #ffffff;
+  --panel-2:   #f1f3f8;
+  --border:    #e2e6ee;
+  --border-2:  #c8d0dd;
+  --text:      #0f1419;
+  --muted:     #555f70;
+  --dim:       #8492a8;
+
+  --c-user:    #00b377;
+  --c-orch:    #2a6fdb;
+  --c-compute: #d63a5f;
+  --c-embed:   #c98a00;
+  --c-vector:  #7a4ed1;
+  --c-seed:    #d96e2c;
+
+  --brand-violet: #7a1cd9;
+  --brand-mint:   #00b377;
+
+  --shadow-soft: 0 4px 18px rgba(15,20,25,.06);
+  --shadow-pop:  0 0 0 1px rgba(15,20,25,.04), 0 8px 24px rgba(15,20,25,.08);
+}
+*/
+
+/* ──── Alt palette (more saturated violet/mint) ────
+:root {
+  --brand-violet: #a201ff;
+  --brand-mint:   #46f9b8;
+  --c-orch:       #6aa9ff;
+  --c-vector:     #a201ff;   // boost the violet on datastores
+}
+*/
+
+/* ──── Corporate / muted ────
+:root {
+  --c-user:    #6ee7b7;
+  --c-orch:    #93c5fd;
+  --c-compute:  #fda4af;
+  --c-embed:   #fcd34d;
+  --c-vector:  #c4b5fd;
+  --c-seed:    #fdba74;
+  --brand-violet: #6366f1;
+  --brand-mint:   #10b981;
+}
+*/

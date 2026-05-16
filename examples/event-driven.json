@@ -1,0 +1,122 @@
+{
+  "system": "Order Processing · Event-Driven Microservices",
+  "audience": "Engineers designing/onboarding to an async event-driven system",
+  "language": "en",
+  "modes": ["v1_monolith_compat", "v2_pure_events"],
+  "mode_descriptions": {
+    "v1_monolith_compat": "Transitional: order service still does sync DB write, then emits event. Other services react async.",
+    "v2_pure_events": "Future state: order service emits event only; persistence happens in a downstream projector."
+  },
+  "nodes": [
+    {
+      "id": "user", "role": "user",
+      "position": "left: 2%; top: 40%",
+      "label": { "default": "Mobile / Web Client" },
+      "tech":  { "default": "REST · OpenAPI" },
+      "port":  { "default": "api.shop.com" }
+    },
+    {
+      "id": "api", "role": "orch",
+      "position": "left: 22%; top: 40%",
+      "label": { "default": "API Gateway" },
+      "tech":  { "default": "Kong · Rate limit · JWT" },
+      "port":  { "default": ":443" }
+    },
+    {
+      "id": "order", "role": "compute",
+      "position": "left: 44%; top: 40%",
+      "label": { "default": "Order Service" },
+      "tech":  { "default": "Go · gRPC + REST" },
+      "port":  { "default": ":50051" }
+    },
+    {
+      "id": "kafka", "role": "vector",
+      "position": "left: 64%; top: 40%",
+      "label": { "default": "Kafka" },
+      "tech":  { "default": "topic: orders.events · 6 partitions" },
+      "port":  { "default": ":9092" }
+    },
+    {
+      "id": "billing", "role": "embed",
+      "position": "left: 86%; top: 12%",
+      "label": { "default": "Billing Worker" },
+      "tech":  { "default": "consumer group: billing" },
+      "port":  { "default": "N pods" }
+    },
+    {
+      "id": "shipping", "role": "embed",
+      "position": "left: 86%; top: 40%",
+      "label": { "default": "Shipping Worker" },
+      "tech":  { "default": "consumer group: shipping" },
+      "port":  { "default": "N pods" }
+    },
+    {
+      "id": "notif", "role": "embed",
+      "position": "left: 86%; top: 70%",
+      "label": { "default": "Notification Worker" },
+      "tech":  { "default": "consumer group: notifications" },
+      "port":  { "default": "N pods" }
+    },
+    {
+      "id": "orderdb", "role": "vector",
+      "position": "left: 44%; top: 78%",
+      "label": { "v1_monolith_compat": "Postgres (orders)", "v2_pure_events": "Read Projection (orders)" },
+      "tech":  { "v1_monolith_compat": "RDS Postgres · primary", "v2_pure_events": "Materialized view · eventually consistent" },
+      "port":  { "default": ":5432" }
+    }
+  ],
+  "flows": [
+    {
+      "key": "place_order",
+      "name": "Place Order",
+      "purpose": "Main user action. Differs significantly between v1 and v2 — show both.",
+      "step_count": 6,
+      "step_outline_v1": [
+        "user → api    : POST /orders",
+        "api → order   : gRPC CreateOrder",
+        "order → orderdb : INSERT (synchronous)",
+        "order → kafka : produce order.created",
+        "order → api   : 201 Created",
+        "api → user    : 201 Created {order_id}"
+      ],
+      "step_outline_v2": [
+        "user → api    : POST /orders",
+        "api → order   : gRPC CreateOrder",
+        "order → kafka : produce order.created (NO direct DB write)",
+        "order → api   : 202 Accepted",
+        "api → user    : 202 Accepted {order_id}",
+        "(async) kafka → orderdb : projector writes to read model"
+      ]
+    },
+    {
+      "key": "billing_reaction",
+      "name": "Billing Reacts to Order",
+      "purpose": "Async fan-out: billing worker consumes the event and charges the card.",
+      "step_count": 4,
+      "step_outline": [
+        "kafka → billing : deliver order.created (consumer group: billing)",
+        "billing → stripe : POST /charges",
+        "stripe → billing : charge result",
+        "billing → kafka : produce billing.completed or billing.failed"
+      ]
+    },
+    {
+      "key": "notification_reaction",
+      "name": "Notification Reacts to Order",
+      "purpose": "Parallel fan-out: notification worker emails the customer.",
+      "step_count": 3
+    },
+    {
+      "key": "shipping_reaction",
+      "name": "Shipping Reacts (After Billing OK)",
+      "purpose": "Shipping waits for billing.completed before reserving inventory.",
+      "step_count": 4
+    }
+  ],
+  "lessons": [
+    "Fan-out is hard to show clearly. Each consumer becomes a separate flow rather than parallel arrows in one flow. The flow tab bar makes the parallelism obvious by listing them side-by-side.",
+    "The two modes here are MIGRATION states, not deployment environments. This is unusual but valid — modes can be any orthogonal axis as long as it changes payload shape, not topology.",
+    "When you have a mode that changes the SHAPE of a flow this much (6 steps vs 6 different steps), consider whether it should really be the same flow at all. Here it's worth keeping as one flow with mode-swapped payloads because the user story is identical from outside: 'place an order'.",
+    "Stripe is shown as a single named node (with a 'seed' role since it's external) only inside the billing_reaction flow. Don't pollute the main canvas with every external dependency — show each only in the flows where it's relevant. (Implementation tip: hide externals via mode or a third 'feature' toggle if needed.)"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "system": "OAuth2 Authorization Code + PKCE",
+  "audience": "Engineers integrating SSO into an existing app",
+  "language": "en",
+  "modes": ["dev", "prod"],
+  "mode_descriptions": {
+    "dev": "Local dev: client on localhost:3000, Keycloak on localhost:8081, no HTTPS",
+    "prod": "Public app, IdP behind CDN, HTTPS everywhere, refresh tokens in httpOnly cookies"
+  },
+  "nodes": [
+    {
+      "id": "user", "role": "user",
+      "position": "left: 2%; top: 40%",
+      "label": { "default": "Browser" },
+      "tech":  { "default": "SPA · React" },
+      "port":  { "dev": "localhost:3000", "prod": "https://app.example.com" }
+    },
+    {
+      "id": "client", "role": "orch",
+      "position": "left: 24%; top: 40%",
+      "label": { "default": "App Backend" },
+      "tech":  { "default": "Node.js · Express" },
+      "port":  { "dev": ":3000", "prod": ":443" }
+    },
+    {
+      "id": "idp", "role": "embed",
+      "position": "left: 50%; top: 12%",
+      "label": { "dev": "Keycloak (local)", "prod": "Auth0 / Okta" },
+      "tech":  { "dev": "Keycloak 23 · Docker", "prod": "External IdP · OIDC" },
+      "port":  { "dev": ":8081", "prod": "auth.example.com" }
+    },
+    {
+      "id": "userdb", "role": "vector",
+      "position": "left: 50%; top: 72%",
+      "label": { "default": "User DB" },
+      "tech":  { "dev": "Postgres 15 (Docker)", "prod": "RDS Postgres · Multi-AZ" },
+      "port":  { "dev": ":5432", "prod": "rds.amazonaws.com:5432" }
+    },
+    {
+      "id": "session", "role": "compute",
+      "position": "left: 76%; top: 40%",
+      "label": { "default": "Session Store" },
+      "tech":  { "dev": "Redis (Docker)", "prod": "ElastiCache · TLS" },
+      "port":  { "dev": ":6379", "prod": "elasticache.amazonaws.com:6379" }
+    }
+  ],
+  "flows": [
+    {
+      "key": "login",
+      "name": "OAuth2 Login (Authorization Code + PKCE)",
+      "purpose": "Initial user login. Redirects to IdP, comes back with code, exchanges for tokens.",
+      "step_count": 7,
+      "step_outline": [
+        "user → client : GET /login  (generates PKCE verifier+challenge)",
+        "client → user : 302 redirect to IdP authorize URL with code_challenge",
+        "user → idp    : GET /authorize (browser follows redirect)",
+        "idp → user    : 302 back to client /callback with ?code=...",
+        "user → client : GET /callback?code=...",
+        "client → idp  : POST /token with code + code_verifier",
+        "idp → client  : {access_token, refresh_token, id_token}",
+        "client → user : Set-Cookie session_id; 302 to /app"
+      ]
+    },
+    {
+      "key": "refresh",
+      "name": "Token Refresh",
+      "purpose": "Access token expired. Use refresh token to get a new one without user interaction.",
+      "step_count": 4
+    },
+    {
+      "key": "logout",
+      "name": "Logout",
+      "purpose": "Revoke session and tokens.",
+      "step_count": 5
+    },
+    {
+      "key": "first_login_provision",
+      "name": "First-time User Provisioning",
+      "purpose": "After successful OAuth, the user doesn't exist locally. Create their profile from claims in the id_token.",
+      "step_count": 5
+    }
+  ],
+  "lessons": [
+    "The IdP is the only node where the 'tech' string is dramatically different between dev and prod (different products entirely: Keycloak vs Auth0). Use mode to swap the label too.",
+    "PKCE matters because the SPA can't keep a secret. The code_verifier is generated client-side and only sent on the token exchange — show this in step 1 and step 6.",
+    "Refresh flow has no user interaction. If you find yourself drawing a 'user' node in this flow, you've conflated user-the-actor with user-the-browser-tab.",
+    "Logout has a backend revoke step that's easy to forget. Without it, the access token works until it expires even after the user 'logged out'."
+  ]
+}

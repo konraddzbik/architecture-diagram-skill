@@ -1,0 +1,94 @@
+{
+  "system": "CI/CD Pipeline · GitHub Actions",
+  "audience": "Engineers onboarding to the deployment process",
+  "language": "en",
+  "modes": ["staging", "prod"],
+  "mode_descriptions": {
+    "staging": "Auto-deploy on merge to main, no approval gate, runs against staging DB",
+    "prod": "Manual approval required, blue-green deploy, runs against production RDS"
+  },
+  "nodes": [
+    {
+      "id": "dev", "role": "user",
+      "position": "left: 2%; top: 40%",
+      "label": { "default": "Developer" },
+      "tech":  { "default": "git push · PR" },
+      "port":  { "default": "github.com" }
+    },
+    {
+      "id": "ci", "role": "seed",
+      "position": "left: 22%; top: 40%",
+      "label": { "default": "GitHub Actions" },
+      "tech":  { "default": "self-hosted runner · arm64" },
+      "port":  { "default": "CI" }
+    },
+    {
+      "id": "registry", "role": "vector",
+      "position": "left: 44%; top: 15%",
+      "label": { "default": "Container Registry" },
+      "tech":  { "staging": "GitHub Packages", "prod": "AWS ECR" },
+      "port":  { "staging": "ghcr.io", "prod": "*.dkr.ecr.amazonaws.com" }
+    },
+    {
+      "id": "deploy", "role": "orch",
+      "position": "left: 44%; top: 65%",
+      "label": { "staging": "ArgoCD (staging)", "prod": "ArgoCD (prod)" },
+      "tech":  { "default": "GitOps · Kubernetes" },
+      "port":  { "staging": "staging.internal", "prod": "argocd.internal" }
+    },
+    {
+      "id": "cluster", "role": "compute",
+      "position": "left: 68%; top: 40%",
+      "label": { "staging": "Staging Cluster", "prod": "Prod Cluster" },
+      "tech":  { "staging": "EKS · 3 nodes", "prod": "EKS · 12 nodes · multi-AZ" },
+      "port":  { "staging": "staging.example.com", "prod": "app.example.com" }
+    },
+    {
+      "id": "db", "role": "vector",
+      "position": "left: 88%; top: 40%",
+      "label": { "staging": "Staging DB", "prod": "Prod RDS" },
+      "tech":  { "staging": "Postgres 16 · single", "prod": "RDS Postgres · Multi-AZ" },
+      "port":  { "staging": ":5432", "prod": "rds.amazonaws.com" }
+    }
+  ],
+  "flows": [
+    {
+      "key": "deploy_on_merge",
+      "name": "Deploy on Merge",
+      "purpose": "Main deploy flow: PR merged → CI builds → image pushed → ArgoCD syncs → cluster updated.",
+      "step_count": 6,
+      "step_outline": [
+        "dev → ci       : push / merge triggers workflow",
+        "ci → ci        : lint, test, build (internal step)",
+        "ci → registry  : docker push tagged image",
+        "ci → deploy    : update manifests / trigger sync",
+        "deploy → cluster : rolling update (staging) or blue-green (prod)",
+        "cluster → db   : run migrations"
+      ]
+    },
+    {
+      "key": "rollback",
+      "name": "Rollback",
+      "purpose": "Something broke in production. Revert to previous known-good image.",
+      "step_count": 4,
+      "step_outline": [
+        "dev → deploy    : trigger rollback via CLI or UI",
+        "deploy → registry : fetch previous image tag",
+        "deploy → cluster  : redeploy previous revision",
+        "cluster → db     : verify schema compatibility"
+      ]
+    },
+    {
+      "key": "hotfix",
+      "name": "Hotfix (prod-only)",
+      "purpose": "Emergency patch: skip staging, fast-track to prod with approval.",
+      "step_count": 5,
+      "only_mode": "prod"
+    }
+  ],
+  "lessons": [
+    "Staging and prod share the same pipeline shape but differ in approval gates and cluster size. This is a good use of modes — same flow, different deployment context.",
+    "The rollback flow is short because it reuses an existing image. No build step.",
+    "Hotfix is prod-only because it bypasses staging entirely — use onlyMode to enforce this."
+  ]
+}
