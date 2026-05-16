@@ -90,7 +90,11 @@ git clone https://github.com/konraddzbik/architecture-diagram-skill \
 
 ## Try it
 
-Once installed, just describe what you want. The skill triggers on phrases like *architecture diagram*, *system flow*, *RAG flow*, *agentic flow*, *service map*, or the Polish equivalents (*diagram architektury*, *klikany diagram*).
+Once installed, just describe what you want. If you don't know where to start, just type:
+
+> Prepare an architecture view of this repository.
+
+The skill triggers on phrases like *architecture diagram*, *system flow*, *RAG flow*, *agentic flow*, *service map*, or the Polish equivalents (*diagram architektury*, *klikany diagram*).
 
 ### Example prompts
 
