@@ -1,0 +1,1 @@
+# architecture-diagram-skill
