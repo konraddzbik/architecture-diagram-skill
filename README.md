@@ -54,16 +54,16 @@ The differentiator is **interactivity + sequenced data flow**. If the value is "
 
 ## Install
 
-### Claude.ai (web / desktop / mobile)
+### Claude Code — Plugin Marketplace (recommended)
 
-1. Download this repo as a ZIP: **Code → Download ZIP** (or `git clone` and zip the folder)
-2. In Claude, go to **Settings → Capabilities → Skills → Upload skill**
-3. Upload the ZIP
-4. Toggle the skill **on** in your skills list
+```bash
+/plugin marketplace add konraddzbik/architecture-diagram-skill
+/plugin install architecture-diagram
+```
 
-The skill will then activate automatically whenever you ask for an architecture diagram, system flow, RAG pipeline visualization, etc.
+That's it. The skill activates automatically whenever you ask for an architecture diagram, system flow, RAG pipeline, etc.
 
-### Claude Code (terminal)
+### Claude Code — manual clone
 
 Personal install (available in all your projects):
 
@@ -79,9 +79,12 @@ git clone https://github.com/konraddzbik/architecture-diagram-skill \
   .claude/skills/architecture-diagram
 ```
 
-### Claude API / Agent SDK
+### Claude.ai (web / desktop / mobile)
 
-Mount the `architecture-diagram/` folder into your skills directory and reference it by name in your request. See [Anthropic's skills documentation](https://docs.claude.com) for the current API surface.
+1. Download this repo as a ZIP: **Code → Download ZIP** (or `git clone` and zip the folder)
+2. In Claude, go to **Settings → Capabilities → Skills → Upload skill**
+3. Upload the ZIP
+4. Toggle the skill **on** in your skills list
 
 ---
 
@@ -120,20 +123,28 @@ If you upload an existing `SOLUTION.md`, OpenAPI spec, or README first, the skil
 
 ```
 architecture-diagram-skill/
-├── SKILL.md                          # Instructions Claude reads when activated
-├── assets/
-│   ├── template.html                 # The drop-in diagram template (CSS + JS + SVG)
-│   └── css-tokens.css                # Standalone color/typography tokens for restyling
-├── examples/
-│   ├── rag-eskadra-bielik.json       # Real RAG system, 5 flows, offline/online modes
-│   ├── auth-oauth2.json              # OAuth2 + session flow, dev/prod modes
-│   ├── event-driven.json             # Kafka fan-out, sync vs async modes
-│   ├── cicd-pipeline.json            # GitHub Actions deploy, staging/prod modes
-│   └── agentic-tool-calling.json     # Multi-agent AI with tool calls
-└── references/
-    ├── flow-design-patterns.md       # Layout heuristics, naming, sequencing
-    ├── component-library.md          # Copy-paste node snippets (User/API/DB/Queue/...)
-    └── screenshot.js                 # Optional puppeteer-based layout spot-check
+├── .claude-plugin/
+│   ├── marketplace.json              # Plugin marketplace manifest
+│   └── plugin.json                   # Plugin metadata
+├── skills/
+│   └── architecture-diagram/
+│       ├── SKILL.md                  # Instructions Claude reads when activated
+│       ├── assets/
+│       │   ├── template.html         # The drop-in diagram template (CSS + JS + SVG)
+│       │   └── css-tokens.css        # Standalone color/typography tokens for restyling
+│       ├── examples/
+│       │   ├── rag-eskadra-bielik.json   # Real RAG system, 5 flows, offline/online modes
+│       │   ├── auth-oauth2.json          # OAuth2 + session flow, dev/prod modes
+│       │   ├── event-driven.json         # Kafka fan-out, sync vs async modes
+│       │   ├── cicd-pipeline.json        # GitHub Actions deploy, staging/prod modes
+│       │   └── agentic-tool-calling.json # Multi-agent AI with tool calls
+│       └── references/
+│           ├── flow-design-patterns.md   # Layout heuristics, naming, sequencing
+│           ├── component-library.md      # Copy-paste node snippets
+│           └── screenshot.js             # Optional puppeteer-based layout spot-check
+├── README.md
+├── LICENSE
+└── .gitignore
 ```
 
 The HTML template is the heart of the skill — Claude copies it and edits only **two regions**: the `nodes` block (HTML) and the `flows` object (JS). Everything else (player, side panel, animations, wire renderer) just works.

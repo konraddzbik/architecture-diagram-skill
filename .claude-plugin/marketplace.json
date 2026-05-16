@@ -1,0 +1,14 @@
+{
+  "name": "architecture-diagram-skill",
+  "owner": {
+    "name": "Konrad Dzbik",
+    "url": "https://github.com/konraddzbik"
+  },
+  "plugins": [
+    {
+      "name": "architecture-diagram",
+      "source": "skills/architecture-diagram",
+      "description": "Interactive, click-through architecture diagrams — single HTML file with animated flows, mode toggles, dark/light theme, and a side panel with payload details."
+    }
+  ]
+}
