@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "architecture-diagram",
-      "source": "skills/architecture-diagram",
+      "source": "./skills/architecture-diagram",
       "description": "Interactive, click-through architecture diagrams — single HTML file with animated flows, mode toggles, dark/light theme, and a side panel with payload details."
     }
   ]
