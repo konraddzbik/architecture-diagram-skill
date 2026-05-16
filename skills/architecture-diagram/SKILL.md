@@ -257,6 +257,8 @@ Maximum 3 chips per step. They're hints, not specifications.
 
 ## Common pitfalls
 
+**`</script>` in payloads breaks everything.** If a payload template literal contains the string `</script>` (e.g. showing an HTML snippet), the browser's HTML parser treats it as the closing tag for the main `<script>` block — killing all JS. Escape it as `<\/script>` or `&lt;/script&gt;` inside template literals. This also applies to any `</style>` or similar closing tags in payload strings.
+
 **Source node looks dead.** If after refactoring the source node of the current step appears `dimmed` instead of `active-from`, you regressed the participant logic. See the "Visual states" section. Test by clicking each flow tab in turn and verifying every node that EVER appears in the flow stays visible at near-full opacity.
 
 **Wire crossings.** Caused by bad node placement, not bad code. If two steps cross, swap node positions. The template auto-curves wires in alternating directions per step index, which helps but doesn't fix bad layout.

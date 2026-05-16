@@ -94,6 +94,8 @@ Once installed, just describe what you want. If you don't know where to start, j
 
 > Prepare an architecture view of this repository.
 
+Claude will generate an `architecture.html` and `architecture.md` in your working directory. Open the HTML in a browser to see the interactive diagram — or ask Claude to show the results right in the terminal.
+
 The skill triggers on phrases like *architecture diagram*, *system flow*, *RAG flow*, *agentic flow*, *service map*, or the Polish equivalents (*diagram architektury*, *klikany diagram*).
 
 ### Example prompts
