@@ -1,6 +1,7 @@
 ---
 name: architecture-diagram
 description: "Build interactive, click-through architecture diagrams for software systems — single HTML file with animated step-by-step flows, mode toggles (dev/prod, offline/online, v1/v2), dark/light theme switch, and a side panel with payload details. Use whenever the user asks for a system architecture visualization, service map, data flow, RAG/agentic flow, microservices topology, integration diagram, CI/CD pipeline, data pipeline, ETL flow, multi-agent system, onboarding diagram, or wants to design a new service's flows visually. Triggers: 'architecture diagram', 'system flow', 'service map', 'data pipeline', 'CI/CD flow', 'microservices diagram', 'agentic flow', 'RAG flow', 'pipeline visualization', 'workshop diagram', 'onboarding diagram', 'pokaż jak działa system', 'diagram architektury', 'wizualizacja systemu', 'klikany diagram', 'I'm building X, what should the flow look like'. Output is a self-contained single-file HTML plus a markdown description. Do NOT use for static Mermaid/PlantUML diagrams (those go inline). Not intended for slide-deck or printable diagrams — this skill produces interactive HTML for browser consumption."
+license: MIT
 ---
 
 # Interactive Architecture Diagrams

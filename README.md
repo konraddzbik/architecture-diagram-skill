@@ -1,4 +1,4 @@
-# Interactive Architecture Diagrams — a Claude Skill
+# Interactive Architecture Diagrams — a Claude Skill, Copilot CLI & OpenCode Skill
 
 > Build click-through, animated system architecture diagrams as a single HTML file. Drop it into a workshop, design review, or onboarding doc and let people **watch the data flow** instead of reading static boxes-and-arrows.
 
@@ -78,6 +78,65 @@ Project install (committed to a repo, shared with your team):
 git clone https://github.com/konraddzbik/architecture-diagram-skill \
   .claude/skills/architecture-diagram
 ```
+
+### GitHub Copilot CLI
+
+Requires [GitHub CLI](https://cli.github.com/) ≥ 2.90.0:
+
+```bash
+gh skill install konraddzbik/architecture-diagram-skill architecture-diagram
+```
+
+The skill is installed to `.github/skills/` in your current project by default. To install it globally for all projects:
+
+```bash
+gh skill install konraddzbik/architecture-diagram-skill architecture-diagram --scope user
+```
+
+If you're already in a `copilot` session, reload without restarting:
+
+```
+/skills reload
+```
+
+#### Manual install (Copilot CLI)
+
+Personal install — available in all your projects:
+
+```bash
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram ~/.copilot/skills/architecture-diagram
+```
+
+Project install — committed to a repo, shared with your team:
+
+```bash
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram .github/skills/architecture-diagram
+```
+
+### OpenCode
+
+Project install — committed to a repo, shared with your team:
+
+```bash
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram .opencode/skills/architecture-diagram
+```
+
+Personal install — available in all your projects:
+
+```bash
+git clone https://github.com/konraddzbik/architecture-diagram-skill ~/.config/opencode/skills/architecture-diagram
+```
+
+Or use the Claude-compatible path (OpenCode reads `.claude/skills/` too):
+
+```bash
+git clone https://github.com/konraddzbik/architecture-diagram-skill ~/.claude/skills/architecture-diagram
+```
+
+The skill activates automatically when you ask for an architecture diagram, system flow, RAG pipeline, etc.
 
 ### Claude.ai (web / desktop / mobile)
 
