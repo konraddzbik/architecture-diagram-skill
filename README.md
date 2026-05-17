@@ -215,6 +215,13 @@ architecture-diagram-skill/
 The HTML template is the heart of the skill — Claude copies it and edits only **two regions**: the `nodes` block (HTML) and the `flows` object (JS). Everything else (player, side panel, animations, wire renderer) just works.
 
 ---
+## Demo
+Template content:
+<img width="1585" height="958" alt="image" src="https://github.com/user-attachments/assets/0677c5b3-8eff-4d79-acef-2a67a757e8a7" />
+Dark theme:
+<img width="1585" height="958" alt="image" src="https://github.com/user-attachments/assets/4798bfff-89ac-4436-9c11-8a28aa086525" />
+
+---
 
 ## Customizing
 
