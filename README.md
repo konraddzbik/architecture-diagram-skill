@@ -1,4 +1,21 @@
-# Interactive Architecture Diagrams — Agent Skill for Claude Code, Gemini CLI, Copilot CLI & OpenCode
+<p align="center">
+  <img src="banner.svg" alt="Interactive Architecture Diagrams – animated nodes with flowing data packets" width="800" />
+</p>
+
+<h1 align="center">Interactive Architecture Diagrams</h1>
+
+<p align="center">
+  <a href="https://www.mintlify.com/blog/skill-md"><b>Agent Skill</b></a> for Claude Code · Gemini CLI · GitHub Copilot CLI · OpenCode · Cursor<br/>
+  Build click-through, animated system architecture diagrams as a single HTML file.<br/>
+  No build step. No dependencies. One file you can email, host, or open locally.
+</p>
+
+<p align="center">
+  <a href="#install"><b>Install</b></a> ·
+  <a href="#try-it"><b>Try It</b></a> ·
+  <a href="#example-prompts"><b>Examples</b></a> ·
+  <a href="skills/architecture-diagram/SKILL.md"><b>Skill Spec</b></a>
+</p>
 
 > Build click-through, animated system architecture diagrams as a single HTML file. Drop it into a workshop, design review, or onboarding doc and let people **watch the data flow** instead of reading static boxes-and-arrows.
 
