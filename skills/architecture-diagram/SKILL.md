@@ -1,5 +1,6 @@
 ---
 name: architecture-diagram
+version: 1.1.0
 description: "Build interactive, click-through architecture diagrams for software systems — single HTML file with animated step-by-step flows, mode toggles (dev/prod, offline/online, v1/v2), dark/light theme switch, and a side panel with payload details. Use whenever the user asks for a system architecture visualization, service map, data flow, RAG/agentic flow, microservices topology, integration diagram, CI/CD pipeline, data pipeline, ETL flow, multi-agent system, onboarding diagram, or wants to design a new service's flows visually. Triggers: 'architecture diagram', 'system flow', 'service map', 'data pipeline', 'CI/CD flow', 'microservices diagram', 'agentic flow', 'RAG flow', 'pipeline visualization', 'workshop diagram', 'onboarding diagram', 'pokaż jak działa system', 'diagram architektury', 'wizualizacja systemu', 'klikany diagram', 'I'm building X, what should the flow look like'. Output is a self-contained single-file HTML plus a markdown description. Do NOT use for static Mermaid/PlantUML diagrams (those go inline). Not intended for slide-deck or printable diagrams — this skill produces interactive HTML for browser consumption."
 license: MIT
 ---
@@ -103,13 +104,15 @@ Always two files:
 - `architecture.html` — the interactive diagram
 - `architecture.md` — text description (components, flows step-by-step, mode differences, scenarios for the workshop)
 
-Save to the current working directory. In Claude.ai, use `/mnt/user-data/outputs/` instead.
+Save to the current working directory. Platform-specific overrides:
+- **Claude.ai** — use `/mnt/user-data/outputs/` instead
+- **Claude Code / Gemini CLI / OpenCode / Copilot CLI** — save to the current working directory (default)
 
 Both should be self-sufficient — someone can read the markdown without opening the HTML, and vice versa.
 
 ### Step 6 — Present the output
 
-If `present_files` is available (Claude.ai), call it to display the HTML first, then the markdown. Otherwise, tell the user where the files were saved and how to open them.
+Tell the user where the files were saved and how to open them (`open architecture.html` on macOS, `xdg-open architecture.html` on Linux, or just open in browser). If `present_files` is available (Claude.ai), call it to display the HTML first, then the markdown.
 
 ---
 
@@ -176,13 +179,17 @@ With `participant`, the very first click on a flow tab shows the viewer: "here a
 
 ## Interaction model
 
-The diagram supports three ways to navigate, in increasing order of viewer expertise:
+The diagram supports five ways to interact, in increasing order of viewer expertise:
 
 | Interaction | What happens | Who uses it |
 |---|---|---|
 | Click flow tab | Jump to step 1 of that flow, side panel updates | Everyone |
 | Click Next/Prev (or →/←, Space) | Advance/rewind one step | Workshop attendees walking through |
 | **Click a node** | Jump to the first step where this node appears | Curious viewers exploring |
+| **Drag a node** | Reposition the node on the canvas; wires redraw live | Layout tweakers / presenters |
+| **Fullscreen (F)** | Expand canvas to fill the screen; Escape to exit | Workshop presenters |
+
+**Node click vs drag.** The template uses a 5px movement threshold to distinguish a click (jump to step) from a drag (reposition). Pointer events handle both mouse and touch. Dragged positions snap to a 32px grid matching the canvas background grid for clean alignment.
 
 **Node click is the easiest to miss when modifying the skill.** Three things must be in place:
 
@@ -193,6 +200,10 @@ The diagram supports three ways to navigate, in increasing order of viewer exper
 If a node isn't part of the current flow (`.dimmed` state), clicking it shakes the node instead of doing nothing. Silent ignore is bad UX — the viewer thinks the page is broken.
 
 Keyboard accessibility: nodes have `tabIndex=0`, Enter/Space triggers the same action as click.
+
+**Layout persistence.** When a viewer drags nodes, their positions are saved to localStorage (keyed by page title). A "reset layout" button (↻) appears in the control bar after any drag. Press `R` or click the button to restore original positions.
+
+**Progress bar.** A thin progress bar below the player controls shows how far into the current flow the viewer is. Updates on every step change.
 
 **Don't break this when adding features.** It's the only way for a viewer to think "wait, where is the LLM used?" and find out instantly. Without it, they'd have to step through all 8 steps just to discover one node's role.
 
@@ -286,7 +297,11 @@ If a user asks for something the template doesn't support, here's the difficulty
 | New flow | trivial | Add entry to `flows` object |
 | New mode (3rd one) | small | Add button to `.modepick`, extend `state.mode` switch, add `payloadX` fields to steps |
 | Different brand colors | small | Edit CSS variables in `:root` (see `assets/css-tokens.css`) |
-| Light theme | built-in | Already supported — click the moon/sun button or press `T`. To make light the default, add `class="light"` to `<body>`. |
+| Light theme | built-in | Click the moon/sun button or press `T`. To make light the default, add `class="light"` to `<body>`. |
+| Drag-and-drop nodes | built-in | Already supported — drag any node; positions snap to 32px grid and persist in localStorage. |
+| Fullscreen mode | built-in | Press `F` or click the expand icon. Press `Escape` to exit. |
+| Layout reset | built-in | Press `R` or click the ↻ button (appears after any drag). |
+| Progress bar | built-in | Thin bar below player shows step position in current flow. |
 | Parallel steps (two simultaneous wires) | medium | Group steps as `{parallel: [step, step]}`; player advances both |
 | Branching flows (if-then-else) | hard | Currently linear. Either fork into separate flows or add a `branch` field with UI for picking the branch. |
 | Saving state in URL | small | Hash-based: `#mode=online&flow=ask&step=3` — parse in boot, update on changes |

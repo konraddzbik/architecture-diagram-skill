@@ -57,3 +57,4 @@ architecture.md
 # Logs
 *.log
 logs/
+.claude/settings.local.json

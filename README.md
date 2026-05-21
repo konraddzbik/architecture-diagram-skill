@@ -1,8 +1,25 @@
-# Interactive Architecture Diagrams — a Claude Skill, Copilot CLI & OpenCode Skill
+<p align="center">
+  <img src="banner.svg" alt="Interactive Architecture Diagrams – animated nodes with flowing data packets" width="800" />
+</p>
+
+<h1 align="center">Interactive Architecture Diagrams</h1>
+
+<p align="center">
+  <a href="https://www.mintlify.com/blog/skill-md"><b>Agent Skill</b></a> for Claude Code · Gemini CLI · GitHub Copilot CLI · OpenCode · Cursor<br/>
+  Build click-through, animated system architecture diagrams as a single HTML file.<br/>
+  No build step. No dependencies. One file you can email, host, or open locally.
+</p>
+
+<p align="center">
+  <a href="#install"><b>Install</b></a> ·
+  <a href="#try-it"><b>Try It</b></a> ·
+  <a href="#example-prompts"><b>Examples</b></a> ·
+  <a href="skills/architecture-diagram/SKILL.md"><b>Skill Spec</b></a>
+</p>
 
 > Build click-through, animated system architecture diagrams as a single HTML file. Drop it into a workshop, design review, or onboarding doc and let people **watch the data flow** instead of reading static boxes-and-arrows.
 
-This is a [Claude Skill](https://github.com/anthropics/skills) — a folder of instructions Claude loads on demand. When you ask Claude to draw an architecture diagram, this skill takes over and produces a self-contained `architecture.html` plus a companion `architecture.md` description.
+This is an [Agent Skill](https://www.mintlify.com/blog/skill-md) — a folder of instructions any compatible AI coding agent loads on demand. When you ask for an architecture diagram, this skill takes over and produces a self-contained `architecture.html` plus a companion `architecture.md` description. Works with Claude Code, Gemini CLI, GitHub Copilot CLI, OpenCode, Cursor, and any tool supporting the SKILL.md standard.
 
 ---
 
@@ -14,8 +31,10 @@ Each generated diagram includes:
 - **Animated data packets** glowing along quadratic-curve wires between services
 - **Side panel** showing the current step's payload, description, and metadata chips (latency, auth headers, ports)
 - **Mode toggles** — switch between `offline/online`, `dev/prod`, or `v1/v2` to swap node labels, ports, and payloads in place
-- **Player controls** — play/pause/step, keyboard shortcuts
+- **Drag-and-drop nodes** — reposition any tile by dragging; snaps to grid, wires redraw live, layout saved to localStorage
+- **Player controls** — play/pause/step, keyboard shortcuts, visual progress bar
 - **Dark/light theme toggle** — switch with one click or press `T` (preference saved in localStorage)
+- **Fullscreen mode** — press `F` to expand the canvas for presentations; `Escape` to exit
 
 No build step. No dependencies. One HTML file you can email, host, or open locally.
 
@@ -77,6 +96,53 @@ Project install (committed to a repo, shared with your team):
 ```bash
 git clone https://github.com/konraddzbik/architecture-diagram-skill \
   .claude/skills/architecture-diagram
+```
+
+### Gemini CLI (recommended: one command)
+
+```bash
+gemini skills install https://github.com/konraddzbik/architecture-diagram-skill
+```
+
+This installs to `~/.gemini/skills/` (user-level, all projects). To install for just the current project:
+
+```bash
+gemini skills install https://github.com/konraddzbik/architecture-diagram-skill --scope workspace
+```
+
+Verify it loaded:
+
+```bash
+gemini skills list
+```
+
+If you're already in a session, reload without restarting:
+
+```
+/skills reload
+```
+
+#### Manual install (Gemini CLI)
+
+Personal install — available in all your projects:
+
+```bash
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram ~/.gemini/skills/architecture-diagram
+```
+
+Project install — committed to a repo, shared with your team:
+
+```bash
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram .gemini/skills/architecture-diagram
+```
+
+Or use the cross-tool `.agents/skills/` path (works in Gemini CLI, OpenCode, and other compatible tools):
+
+```bash
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram .agents/skills/architecture-diagram
 ```
 
 ### GitHub Copilot CLI
@@ -226,6 +292,8 @@ Dark theme:
 ## Customizing
 
 - **Light or dark theme:** every diagram ships with a built-in toggle (moon/sun icon, or press `T`). The preference is saved in localStorage. To make light the default, ask Claude to add `class="light"` to the `<body>` tag.
+- **Rearrange nodes:** drag any node to reposition it. Positions snap to a 32px grid and are saved to localStorage. Press `R` to reset to original positions.
+- **Fullscreen presentations:** press `F` to expand the canvas full-screen. Press `Escape` to exit.
 - **Restyle to your brand:** point Claude at `assets/css-tokens.css` and ask it to swap the palette. The tokens are standalone — splice them into the template and you're done.
 - **Add a new node role:** there are six color-coded roles built in (`user`, `orch`, `compute`, `embed`, `vector`, `seed`). Add a CSS variable for a seventh if you must, but keep the count ≤ 6 or the legend becomes hard to read.
 - **Different output language:** the skill works in English and Polish. Ask in your preferred language and the labels, descriptions, and companion markdown will match.

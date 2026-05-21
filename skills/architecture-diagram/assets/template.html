@@ -248,6 +248,19 @@
     padding: 0 10px; min-width: 64px; text-align:center;
   }
 
+  /* flow progress bar */
+  .progress-track{
+    width:100%; height: 3px; background: var(--border);
+    border-radius: 2px; margin-top: 4px;
+    grid-column: 1 / -1;
+  }
+  .progress-fill{
+    height:100%; border-radius: 2px;
+    background: var(--brand-mint);
+    transition: width .35s ease;
+    box-shadow: 0 0 8px rgba(70,249,184,.3);
+  }
+
   /* ── stage where nodes & svg live ── */
   .stage{
     position:relative;
@@ -272,6 +285,15 @@
     transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s ease, border-color .25s ease, box-shadow .25s ease;
     z-index: 2;
     cursor: pointer;
+    user-select: none;
+    touch-action: none;
+  }
+  .node.dragging{
+    z-index: 100;
+    cursor: grabbing;
+    transition: none;
+    box-shadow: 0 0 0 2px var(--c), 0 20px 60px rgba(0,0,0,.5);
+    transform: scale(1.04);
   }
   /* Hover affordance — every node lifts and reveals its role color, so
      viewers learn "these are clickable". Click = jump to first step where
@@ -610,7 +632,7 @@
   body.light aside{ background: linear-gradient(180deg, rgba(0,0,0,.01), rgba(0,0,0,.005)); }
 
   /* theme toggle */
-  .theme-toggle{
+  .theme-toggle, .layout-reset, .fullscreen-toggle{
     appearance:none; border:1px solid var(--border); background: var(--panel);
     color: var(--muted); cursor:pointer;
     width: 34px; height: 34px; border-radius: 10px;
@@ -618,10 +640,22 @@
     transition: all .2s ease;
     flex-shrink: 0;
   }
-  .theme-toggle:hover{ color: var(--text); border-color: var(--border-2); }
+  .theme-toggle:hover, .layout-reset:hover, .fullscreen-toggle:hover{ color: var(--text); border-color: var(--border-2); }
+  .layout-reset{ display:none; }
+  .layout-reset.has-custom{ display:inline-flex; }
   .theme-toggle .icon-sun{ display:none; }
   body.light .theme-toggle .icon-moon{ display:none; }
   body.light .theme-toggle .icon-sun{ display:block; }
+
+  /* fullscreen canvas */
+  .canvas.is-fullscreen{
+    position:fixed; inset:0; z-index:9999;
+    border-radius:0; margin:0; max-width:none;
+    min-height:100vh;
+    overflow:auto;
+  }
+  .canvas.is-fullscreen .stage{ height: calc(100vh - 80px); }
+  .canvas.is-fullscreen ~ aside{ display:none; }
 </style>
 </head>
 <body>
@@ -656,6 +690,16 @@
     <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
   </button>
+
+  <!-- 3c. Reset layout (appears only after user drags nodes). -->
+  <button class="layout-reset" id="btnResetLayout" title="Reset node positions (R)" aria-label="Reset layout">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+  </button>
+
+  <!-- 3d. Fullscreen toggle for canvas (F). -->
+  <button class="fullscreen-toggle" id="btnFullscreen" title="Fullscreen (F)" aria-label="Toggle fullscreen">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+  </button>
 </div>
 
 <!-- 4. Flow tabs. One per scenario. data-flow must match a key in the JS `flows` object.
@@ -666,7 +710,7 @@
   <button class="flowtab" data-flow="flow_c" aria-pressed="false"><span class="num">3</span> {{FLOW_C_LABEL}}</button>
 </nav>
 
-<p class="scenario-note">Shortcuts: <kbd>Space</kbd> play/pause · <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> step · <kbd>1</kbd>&ndash;<kbd>5</kbd> flow · <kbd>O</kbd> toggle mode · <kbd>T</kbd> toggle theme</p>
+<p class="scenario-note">Shortcuts: <kbd>Space</kbd> play/pause · <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> step · <kbd>1</kbd>&ndash;<kbd>5</kbd> flow · <kbd>O</kbd> mode · <kbd>T</kbd> theme · <kbd>F</kbd> fullscreen · <kbd>R</kbd> reset layout · Drag nodes to reposition</p>
 
 <main>
   <section class="canvas" aria-label="Architecture diagram">
@@ -685,6 +729,7 @@
         <span class="stepidx" id="stepIdx">0 / 0</span>
       </div>
     </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
 
     <div class="stage" id="stage">
       <!--
@@ -1111,25 +1156,66 @@ function nodeCenter(node){
   };
 }
 
-/* compute an anchor on the node edge (closest to target) */
+/* compute an anchor on the node edge via ray-rect intersection */
 function nodeAnchor(node, towards){
   const c = nodeCenter(node);
   const dx = towards.x - c.x;
   const dy = towards.y - c.y;
+  const dist = Math.hypot(dx, dy);
   const hw = c.w/2, hh = c.h/2;
-  if(Math.abs(dx)/hw > Math.abs(dy)/hh){
-    /* exits left/right */
-    const sx = dx > 0 ? 1 : -1;
-    return { x: c.x + sx*(hw+6), y: c.y + dy * (hw/Math.abs(dx)) * 0.6 };
-  } else {
-    const sy = dy > 0 ? 1 : -1;
-    return { x: c.x + dx * (hh/Math.abs(dy)) * 0.6, y: c.y + sy*(hh+6) };
-  }
+  const pad = 6;
+
+  if(dist < 1) return { x: c.x + hw + pad, y: c.y };
+
+  const tx = Math.abs(dx) > 0.001 ? hw / Math.abs(dx) : 1e6;
+  const ty = Math.abs(dy) > 0.001 ? hh / Math.abs(dy) : 1e6;
+  const t = Math.min(tx, ty);
+
+  return {
+    x: c.x + dx * t + (dx / dist) * pad,
+    y: c.y + dy * t + (dy / dist) * pad
+  };
 }
 
-/* draw all wires for current flow */
+/* compute geometry for all wires in the current flow */
+function computeWireGeometry(){
+  const flow = flows[state.flow];
+  const geom = [];
+  flow.steps.forEach((s, i) => {
+    const a = nodeById(s.from);
+    const b = nodeById(s.to);
+    if(!a || !b || a.classList.contains("hidden") || b.classList.contains("hidden")){
+      geom.push(null);
+      return;
+    }
+    const ca = nodeCenter(a);
+    const cb = nodeCenter(b);
+    const A = nodeAnchor(a, cb);
+    const B = nodeAnchor(b, ca);
+
+    const ddx = B.x - A.x;
+    const ddy = B.y - A.y;
+    const len = Math.hypot(ddx, ddy) || 1;
+    let nx, ny;
+    if(len < 5){ nx = 0; ny = -1; }
+    else { nx = -ddy/len; ny = ddx/len; }
+
+    const mx = (A.x + B.x) / 2;
+    const my = (A.y + B.y) / 2;
+
+    const curveAmount = Math.max(12, Math.min(50, len * 0.12));
+    const offset = curveAmount * (i % 2 === 0 ? 1 : -1);
+    const cx = mx + nx * offset;
+    const cy = my + ny * offset;
+    const d = `M ${A.x} ${A.y} Q ${cx} ${cy} ${B.x} ${B.y}`;
+
+    geom.push({ d, cx, cy });
+  });
+  return geom;
+}
+
+/* draw all wires for current flow (full rebuild) */
 function drawWires(){
-  /* clear existing wires except defs */
   Array.from(svgWires.querySelectorAll(".wire, .packet, .wire-label")).forEach(el=>el.remove());
 
   const sRect = stage.getBoundingClientRect();
@@ -1138,59 +1224,34 @@ function drawWires(){
   svgWires.setAttribute("height", sRect.height);
 
   const flow = flows[state.flow];
+  const geom = computeWireGeometry();
+  const ahMap = {
+    "--c-user":"ah-mint","--c-orch":"ah-sky","--c-embed":"ah-amber",
+    "--c-vector":"ah-violet","--c-compute":"ah-mag","--c-seed":"ah-orange"
+  };
+
   flow.steps.forEach((s, i)=>{
-    const a = nodeById(s.from);
-    const b = nodeById(s.to);
-    if(!a || !b || a.classList.contains("hidden") || b.classList.contains("hidden")) return;
-
-    const ca = nodeCenter(a);
-    const cb = nodeCenter(b);
-    const A = nodeAnchor(a, cb);
-    const B = nodeAnchor(b, ca);
-
-    /* control points for a gentle curve */
-    const mx = (A.x+B.x)/2;
-    const my = (A.y+B.y)/2;
-    /* offset for orth feel; pick perpendicular */
-    const ddx = B.x - A.x;
-    const ddy = B.y - A.y;
-    const len = Math.hypot(ddx, ddy) || 1;
-    const nx = -ddy/len, ny = ddx/len;
-    /* alternate curvature to avoid overlapping wires */
-    const offset = 30 * (i % 2 === 0 ? 1 : -1);
-    const cx = mx + nx * offset;
-    const cy = my + ny * offset;
+    const g = geom[i];
+    if(!g) return;
 
     const path = document.createElementNS("http://www.w3.org/2000/svg","path");
     path.setAttribute("class","wire");
     path.setAttribute("data-step", i);
-    path.setAttribute("d", `M ${A.x} ${A.y} Q ${cx} ${cy} ${B.x} ${B.y}`);
-    /* color via custom prop */
+    path.setAttribute("d", g.d);
     path.style.setProperty("--wire-color", `var(${s.color})`);
-    /* arrowhead per color */
-    const ahMap = {
-      "--c-user":"ah-mint",
-      "--c-orch":"ah-sky",
-      "--c-embed":"ah-amber",
-      "--c-vector":"ah-violet",
-      "--c-compute":"ah-mag",
-      "--c-seed":"ah-orange"
-    };
     path.setAttribute("marker-end", `url(#${ahMap[s.color] || "ah-mint"})`);
     svgWires.appendChild(path);
 
-    /* small numeric label at midpoint */
     const lab = document.createElementNS("http://www.w3.org/2000/svg","text");
     lab.setAttribute("class","wire-label");
     lab.setAttribute("data-step", i);
-    lab.setAttribute("x", cx);
-    lab.setAttribute("y", cy + 4);
+    lab.setAttribute("x", g.cx);
+    lab.setAttribute("y", g.cy + 4);
     lab.setAttribute("text-anchor","middle");
     lab.style.setProperty("--wire-color", `var(${s.color})`);
     lab.textContent = (i+1);
     svgWires.appendChild(lab);
 
-    /* packet to animate */
     const pkt = document.createElementNS("http://www.w3.org/2000/svg","circle");
     pkt.setAttribute("class","packet");
     pkt.setAttribute("data-step", i);
@@ -1199,14 +1260,46 @@ function drawWires(){
     pkt.style.setProperty("--wire-color", `var(${s.color})`);
     svgWires.appendChild(pkt);
 
-    /* attach motion via animateMotion */
     const m = document.createElementNS("http://www.w3.org/2000/svg","animateMotion");
     m.setAttribute("dur","1.5s");
     m.setAttribute("repeatCount","1");
     m.setAttribute("fill","freeze");
     m.setAttribute("begin","indefinite");
-    m.setAttribute("path", `M ${A.x} ${A.y} Q ${cx} ${cy} ${B.x} ${B.y}`);
+    m.setAttribute("path", g.d);
     pkt.appendChild(m);
+  });
+}
+
+/* fast incremental path update — reuses existing SVG elements during drag */
+function updateWirePaths(){
+  const sRect = stage.getBoundingClientRect();
+  svgWires.setAttribute("viewBox", `0 0 ${sRect.width} ${sRect.height}`);
+  svgWires.setAttribute("width", sRect.width);
+  svgWires.setAttribute("height", sRect.height);
+
+  const geom = computeWireGeometry();
+  const flow = flows[state.flow];
+
+  flow.steps.forEach((s, i) => {
+    const g = geom[i];
+    const wire = svgWires.querySelector(`.wire[data-step="${i}"]`);
+    const label = svgWires.querySelector(`.wire-label[data-step="${i}"]`);
+    const packet = svgWires.querySelector(`.packet[data-step="${i}"]`);
+
+    if(!g){
+      if(wire) wire.setAttribute("d", "");
+      return;
+    }
+
+    if(wire) wire.setAttribute("d", g.d);
+    if(label){
+      label.setAttribute("x", g.cx);
+      label.setAttribute("y", g.cy + 4);
+    }
+    if(packet){
+      const motion = packet.querySelector("animateMotion");
+      if(motion) motion.setAttribute("path", g.d);
+    }
   });
 }
 
@@ -1305,13 +1398,19 @@ function applyStep(){
   /* button states */
   btnPrev.disabled = btnPrev2.disabled = state.step === 0;
   btnNext.disabled = btnNext2.disabled = state.step === total-1;
+
+  /* progress bar */
+  const pct = total > 1 ? ((state.step) / (total - 1)) * 100 : 100;
+  document.getElementById("progressFill").style.width = pct + "%";
 }
+
+function esc(s){ const d=document.createElement("span"); d.textContent=s; return d.innerHTML; }
 
 function prettyId(id){
   const node = nodeById(id);
-  if(!node) return id;
+  if(!node) return esc(id);
   const label = node.querySelector(".label");
-  return label ? label.textContent : id;
+  return label ? esc(label.textContent) : esc(id);
 }
 
 /* ─── play / pause ──────────────────────────────────── */
@@ -1404,13 +1503,189 @@ btnNext.addEventListener("click", ()=>{ setPlaying(false); go(+1); });
 btnPrev2.addEventListener("click", ()=>{ setPlaying(false); go(-1); });
 btnNext2.addEventListener("click", ()=>{ setPlaying(false); go(+1); });
 
-/* keyboard */
+/* ─── drag-and-drop node repositioning ─────────────────────────────────
+   Hold and drag any node to reposition it. Short clicks (< 5px movement)
+   still trigger the jump-to-step behavior. Wires redraw live.
+   Positions are in % of the stage dimensions for responsive layout. */
+const DRAG_THRESHOLD = 5;
+const SNAP_PX = 32;
+let dragState = null;
+
+function stageRect(){ return stage.getBoundingClientRect(); }
+
+function startDrag(n, clientX, clientY){
+  const sr = stageRect();
+  const nr = n.getBoundingClientRect();
+  dragState = {
+    node: n,
+    startX: clientX,
+    startY: clientY,
+    offsetX: clientX - nr.left,
+    offsetY: clientY - nr.top,
+    dragging: false
+  };
+}
+
+let dragRAF = null;
+
+function moveDrag(clientX, clientY){
+  if(!dragState) return;
+  const dx = clientX - dragState.startX;
+  const dy = clientY - dragState.startY;
+  if(!dragState.dragging && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+
+  if(!dragState.dragging){
+    dragState.dragging = true;
+    dragState.node.classList.add("dragging");
+  }
+
+  const sr = stageRect();
+  let rawX = clientX - sr.left - dragState.offsetX;
+  let rawY = clientY - sr.top  - dragState.offsetY;
+
+  rawX = Math.round(rawX / SNAP_PX) * SNAP_PX;
+  rawY = Math.round(rawY / SNAP_PX) * SNAP_PX;
+
+  const pctX = Math.max(0, Math.min(92, (rawX / sr.width) * 100));
+  const pctY = Math.max(0, Math.min(92, (rawY / sr.height) * 100));
+
+  dragState.node.style.left = pctX + "%";
+  dragState.node.style.top  = pctY + "%";
+
+  if(!dragRAF){
+    dragRAF = requestAnimationFrame(()=>{
+      updateWirePaths();
+      dragRAF = null;
+    });
+  }
+}
+
+function endDrag(){
+  if(!dragState) return;
+  const wasDrag = dragState.dragging;
+  const n = dragState.node;
+  n.classList.remove("dragging");
+
+  if(wasDrag){
+    saveLayout();
+    showResetBtn();
+    drawWires();
+    applyStep();
+  }
+
+  dragState = null;
+  return wasDrag;
+}
+
+nodes.forEach(n=>{
+  n.addEventListener("pointerdown", (e)=>{
+    if(e.button !== 0) return;
+    e.preventDefault();
+    n.setPointerCapture(e.pointerId);
+    startDrag(n, e.clientX, e.clientY);
+  });
+  n.addEventListener("pointermove", (e)=>{
+    moveDrag(e.clientX, e.clientY);
+  });
+  n.addEventListener("pointerup", (e)=>{
+    const wasDrag = endDrag();
+    if(!wasDrag) handleNodeClick(n);
+  });
+  n.addEventListener("pointercancel", ()=>{ endDrag(); });
+
+  n.tabIndex = 0;
+  n.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter" || e.key === " "){
+      e.preventDefault();
+      handleNodeClick(n);
+    }
+  });
+});
+
+function handleNodeClick(n){
+  const flow = flows[state.flow];
+  const i = flow.steps.findIndex(s=> s.from===n.dataset.id || s.to===n.dataset.id );
+  if(i>=0){
+    setPlaying(false);
+    state.step = i;
+    applyStep();
+  } else {
+    n.style.animation = "none";
+    void n.offsetWidth;
+    n.style.animation = "node-shake .4s ease";
+    setTimeout(()=>{ n.style.animation = ""; }, 450);
+  }
+}
+
+/* ─── layout persistence (localStorage) ─────────────────────────────── */
+const LAYOUT_KEY = "arch-layout-" + document.title.replace(/\s/g,"-").toLowerCase();
+
+function saveLayout(){
+  const positions = {};
+  nodes.forEach(n=>{
+    positions[n.dataset.id] = { left: n.style.left, top: n.style.top };
+  });
+  try{ localStorage.setItem(LAYOUT_KEY, JSON.stringify(positions)); }catch(e){}
+}
+
+function loadLayout(){
+  try{
+    const saved = localStorage.getItem(LAYOUT_KEY);
+    if(!saved) return false;
+    const positions = JSON.parse(saved);
+    let applied = false;
+    nodes.forEach(n=>{
+      const p = positions[n.dataset.id];
+      if(p){ n.style.left = p.left; n.style.top = p.top; applied = true; }
+    });
+    return applied;
+  }catch(e){ return false; }
+}
+
+function resetLayout(){
+  try{ localStorage.removeItem(LAYOUT_KEY); }catch(e){}
+  nodes.forEach(n=>{
+    const orig = n.dataset.origLeft;
+    const origT = n.dataset.origTop;
+    if(orig) n.style.left = orig;
+    if(origT) n.style.top = origT;
+  });
+  drawWires(); applyStep();
+  hideResetBtn();
+}
+
+nodes.forEach(n=>{
+  n.dataset.origLeft = n.style.left;
+  n.dataset.origTop  = n.style.top;
+});
+
+const btnResetLayout = document.getElementById("btnResetLayout");
+function showResetBtn(){ btnResetLayout.classList.add("has-custom"); }
+function hideResetBtn(){ btnResetLayout.classList.remove("has-custom"); }
+btnResetLayout.addEventListener("click", resetLayout);
+
+if(loadLayout()) showResetBtn();
+
+/* ─── fullscreen toggle ─────────────────────────────────────────────── */
+const canvas = document.querySelector(".canvas");
+const btnFullscreen = document.getElementById("btnFullscreen");
+
+function toggleFullscreen(){
+  canvas.classList.toggle("is-fullscreen");
+  setTimeout(()=>{ drawWires(); applyStep(); }, 50);
+}
+btnFullscreen.addEventListener("click", toggleFullscreen);
+
+/* ─── keyboard ─────────────────────────────────────────────────────── */
 window.addEventListener("keydown",(e)=>{
   if(e.target.closest("input,textarea")) return;
   if(e.code === "Space"){ e.preventDefault(); setPlaying(!state.playing); }
   else if(e.key === "ArrowRight"){ setPlaying(false); go(+1); }
   else if(e.key === "ArrowLeft"){ setPlaying(false); go(-1); }
   else if(e.key === "t" || e.key === "T"){ toggleTheme(); }
+  else if(e.key === "f" || e.key === "F"){ toggleFullscreen(); }
+  else if(e.key === "r" || e.key === "R"){ if(btnResetLayout.classList.contains("has-custom")) resetLayout(); }
+  else if(e.key === "Escape"){ if(canvas.classList.contains("is-fullscreen")) toggleFullscreen(); }
   else if(e.key === "o" || e.key === "O"){
     const [a, b] = CONFIG.toggleModes;
     pickMode(state.mode === a ? b : a);
@@ -1422,35 +1697,6 @@ window.addEventListener("keydown",(e)=>{
   }
 });
 
-/* clicking on a node jumps to its first appearance in the current flow.
-   If the node doesn't appear in this flow at all (it's `dimmed`), do a small
-   shake so the user knows the click registered but there's nowhere to go. */
-nodes.forEach(n=>{
-  n.addEventListener("click", ()=>{
-    const flow = flows[state.flow];
-    const i = flow.steps.findIndex(s=> s.from===n.dataset.id || s.to===n.dataset.id );
-    if(i>=0){
-      setPlaying(false);
-      state.step = i;
-      applyStep();
-    } else {
-      /* node isn't part of this flow — shake to acknowledge the click */
-      n.style.animation = "none";
-      void n.offsetWidth; /* trigger reflow */
-      n.style.animation = "node-shake .4s ease";
-      setTimeout(()=>{ n.style.animation = ""; }, 450);
-    }
-  });
-  n.tabIndex = 0;
-  /* keyboard accessibility: Enter/Space activates the focused node */
-  n.addEventListener("keydown", (e)=>{
-    if(e.key === "Enter" || e.key === " "){
-      e.preventDefault();
-      n.click();
-    }
-  });
-});
-
 /* responsive redraw */
 let rrTimer;
 window.addEventListener("resize", ()=>{
@@ -1460,7 +1706,6 @@ window.addEventListener("resize", ()=>{
 
 /* boot */
 applyModeToNodes();
-/* wait a tick for layout */
 requestAnimationFrame(()=>{
   drawWires();
   applyStep();
