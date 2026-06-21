@@ -22,7 +22,8 @@
 <!-- Remove the three font <link> tags below for fully offline use; fonts fall back to system UI. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"></noscript>
 <style>
   :root{
     /* Dark base, tuned for didactic clarity */
@@ -148,6 +149,8 @@
     color: var(--text);
     box-shadow: inset 0 0 0 1px var(--border-2);
   }
+  /* generic accent — covers renamed / 3rd modes; offline/online below override it */
+  .modepick button[aria-pressed="true"] .pill{ background: rgba(70,249,184,.14); color: var(--c-user); }
   .modepick button[aria-pressed="true"][data-mode="offline"] .pill{ background: rgba(106,169,255,.16); color: var(--c-orch); }
   .modepick button[aria-pressed="true"][data-mode="online"] .pill{ background: rgba(162,1,255,.18); color: #d9a6ff; }
 
@@ -217,7 +220,7 @@
     background-image:
       linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
-    background-size: 32px 32px;
+    background-size: 48px 48px;  /* matches body grid + drag SNAP_PX so nodes snap onto visible lines */
     mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 80%);
   }
 
@@ -474,6 +477,7 @@
     background: rgba(255,255,255,.04); color: var(--muted);
     border:1px solid var(--border);
   }
+  .panel-mode[data-mode]{ color: var(--c-user); border-color: rgba(70,249,184,.3); }
   .panel-mode[data-mode="offline"]{ color: var(--c-orch); border-color: rgba(106,169,255,.3); }
   .panel-mode[data-mode="online"]{ color: #d9a6ff; border-color: rgba(162,1,255,.35); }
 
@@ -710,7 +714,7 @@
   <button class="flowtab" data-flow="flow_c" aria-pressed="false"><span class="num">3</span> {{FLOW_C_LABEL}}</button>
 </nav>
 
-<p class="scenario-note">Shortcuts: <kbd>Space</kbd> play/pause · <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> step · <kbd>1</kbd>&ndash;<kbd>5</kbd> flow · <kbd>O</kbd> mode · <kbd>T</kbd> theme · <kbd>F</kbd> fullscreen · <kbd>R</kbd> reset layout · Drag nodes to reposition</p>
+<p class="scenario-note">Shortcuts: <kbd>Space</kbd> play/pause · <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> step · <kbd>1</kbd>&ndash;<kbd id="kbFlowMax">3</kbd> flow · <kbd>O</kbd> mode · <kbd>T</kbd> theme · <kbd>F</kbd> fullscreen · <kbd>R</kbd> reset layout · Drag nodes to reposition</p>
 
 <main>
   <section class="canvas" aria-label="Architecture diagram">
@@ -907,6 +911,8 @@ const flows = {
              route: "POST /endpoint",   // tiny route hint shown next to from→to
              desc:  "Plain HTML description. Use <em> for emphasis, <code> inline.",
 
+             // WARNING: in ANY payload string, escape closing tags as <\/script> and
+             //   <\/style> — an unescaped one truncates this script block and blanks the diagram.
              // ONE of these three payload variants:
              payload: "...",            // same in both modes
              payloadOffline: "...",     // mode-specific (rename keys to match your modes)
@@ -1128,6 +1134,10 @@ const panelMode = document.getElementById("panelMode");
 /* ─── helpers ───────────────────────────────────────── */
 function nodeById(id){ return nodes.find(n=>n.dataset.id===id); }
 
+/* participant set is recomputed only when the flow changes (cheap per-step applyStep) */
+let participantIds = new Set();
+let participantFlow = null;
+
 function applyModeToNodes(){
   const modeKey = state.mode.charAt(0).toUpperCase() + state.mode.slice(1);
   nodes.forEach(n=>{
@@ -1140,14 +1150,16 @@ function applyModeToNodes(){
     const allowedModes = n.dataset.modes;
     const visible = !allowedModes || allowedModes.split(",").includes(state.mode);
     n.classList.toggle("hidden", !visible);
+    n.tabIndex = visible ? 0 : -1;  /* keep keyboard focus off hidden nodes */
   });
   panelMode.textContent = state.mode.toUpperCase();
   panelMode.dataset.mode = state.mode;
 }
 
-/* compute center of a node in stage coordinates */
-function nodeCenter(node){
-  const sRect = stage.getBoundingClientRect();
+/* compute center of a node in stage coordinates.
+   Pass `sRect` (stage.getBoundingClientRect()) to avoid re-reading layout per call. */
+function nodeCenter(node, sRect){
+  sRect = sRect || stage.getBoundingClientRect();
   const r = node.getBoundingClientRect();
   return {
     x: r.left - sRect.left + r.width/2,
@@ -1156,9 +1168,9 @@ function nodeCenter(node){
   };
 }
 
-/* compute an anchor on the node edge via ray-rect intersection */
-function nodeAnchor(node, towards){
-  const c = nodeCenter(node);
+/* compute an anchor on a node edge via ray-rect intersection.
+   `c` is the node's already-computed center; `towards` is the point to aim at. */
+function nodeAnchor(c, towards){
   const dx = towards.x - c.x;
   const dy = towards.y - c.y;
   const dist = Math.hypot(dx, dy);
@@ -1177,8 +1189,10 @@ function nodeAnchor(node, towards){
   };
 }
 
-/* compute geometry for all wires in the current flow */
-function computeWireGeometry(){
+/* compute geometry for all wires in the current flow.
+   `sRect` is read once by the caller and threaded through to avoid per-node layout reads. */
+function computeWireGeometry(sRect){
+  sRect = sRect || stage.getBoundingClientRect();
   const flow = flows[state.flow];
   const geom = [];
   flow.steps.forEach((s, i) => {
@@ -1188,10 +1202,10 @@ function computeWireGeometry(){
       geom.push(null);
       return;
     }
-    const ca = nodeCenter(a);
-    const cb = nodeCenter(b);
-    const A = nodeAnchor(a, cb);
-    const B = nodeAnchor(b, ca);
+    const ca = nodeCenter(a, sRect);
+    const cb = nodeCenter(b, sRect);
+    const A = nodeAnchor(ca, cb);
+    const B = nodeAnchor(cb, ca);
 
     const ddx = B.x - A.x;
     const ddy = B.y - A.y;
@@ -1214,9 +1228,14 @@ function computeWireGeometry(){
   return geom;
 }
 
+/* cache of per-step SVG elements, rebuilt by drawWires() and reused by updateWirePaths()
+   so the drag path never re-queries the DOM. Index = step index; holes are undefined. */
+let wireEls = [];
+
 /* draw all wires for current flow (full rebuild) */
 function drawWires(){
   Array.from(svgWires.querySelectorAll(".wire, .packet, .wire-label")).forEach(el=>el.remove());
+  wireEls = [];
 
   const sRect = stage.getBoundingClientRect();
   svgWires.setAttribute("viewBox", `0 0 ${sRect.width} ${sRect.height}`);
@@ -1224,7 +1243,7 @@ function drawWires(){
   svgWires.setAttribute("height", sRect.height);
 
   const flow = flows[state.flow];
-  const geom = computeWireGeometry();
+  const geom = computeWireGeometry(sRect);
   const ahMap = {
     "--c-user":"ah-mint","--c-orch":"ah-sky","--c-embed":"ah-amber",
     "--c-vector":"ah-violet","--c-compute":"ah-mag","--c-seed":"ah-orange"
@@ -1267,6 +1286,8 @@ function drawWires(){
     m.setAttribute("begin","indefinite");
     m.setAttribute("path", g.d);
     pkt.appendChild(m);
+
+    wireEls[i] = { path, label: lab, packet: pkt, motion: m };
   });
 }
 
@@ -1277,29 +1298,25 @@ function updateWirePaths(){
   svgWires.setAttribute("width", sRect.width);
   svgWires.setAttribute("height", sRect.height);
 
-  const geom = computeWireGeometry();
+  const geom = computeWireGeometry(sRect);
   const flow = flows[state.flow];
 
   flow.steps.forEach((s, i) => {
     const g = geom[i];
-    const wire = svgWires.querySelector(`.wire[data-step="${i}"]`);
-    const label = svgWires.querySelector(`.wire-label[data-step="${i}"]`);
-    const packet = svgWires.querySelector(`.packet[data-step="${i}"]`);
+    const w = wireEls[i];
+    if(!w) return;
 
     if(!g){
-      if(wire) wire.setAttribute("d", "");
+      if(w.path) w.path.setAttribute("d", "");
       return;
     }
 
-    if(wire) wire.setAttribute("d", g.d);
-    if(label){
-      label.setAttribute("x", g.cx);
-      label.setAttribute("y", g.cy + 4);
+    if(w.path) w.path.setAttribute("d", g.d);
+    if(w.label){
+      w.label.setAttribute("x", g.cx);
+      w.label.setAttribute("y", g.cy + 4);
     }
-    if(packet){
-      const motion = packet.querySelector("animateMotion");
-      if(motion) motion.setAttribute("path", g.d);
-    }
+    if(w.motion) w.motion.setAttribute("path", g.d);
   });
 }
 
@@ -1319,8 +1336,11 @@ function applyStep(){
      viewer can see the whole path at a glance. Nodes NOT in this set get
      heavily dimmed — this is what makes "Direct Query bypasses Embed and
      Vector" visually obvious. */
-  const participantIds = new Set();
-  flow.steps.forEach(s=>{ participantIds.add(s.from); participantIds.add(s.to); });
+  if(participantFlow !== state.flow){
+    participantIds = new Set();
+    flow.steps.forEach(s=>{ participantIds.add(s.from); participantIds.add(s.to); });
+    participantFlow = state.flow;
+  }
 
   /* Apply node classes:
      - active       = TARGET of the current step (badge + ring)
@@ -1330,17 +1350,20 @@ function applyStep(){
      A node can only have one of these; we clear all then set the right one. */
   nodes.forEach(n=>{
     n.classList.remove("active","active-from","participant","dimmed","has-badge");
-    n.querySelector(".step-badge").textContent = "·";
+    const badge = n._badge || (n._badge = n.querySelector(".step-badge"));
+    badge.textContent = "·";
   });
   const a = nodeById(step.from);
   const b = nodeById(step.to);
-  if(a){
+  /* Skip nodes hidden in the current mode — tagging them active would create a
+     navigable dead step (no visible node, no wire, no packet). */
+  if(a && !a.classList.contains("hidden")){
     a.classList.add("active-from");
   }
-  if(b){
+  if(b && !b.classList.contains("hidden")){
     b.classList.add("active","has-badge");
-    b.querySelector(".step-badge").textContent = state.step+1;
-    b.querySelector(".step-badge").style.background = `var(${step.color})`;
+    b._badge.textContent = state.step+1;
+    b._badge.style.background = `var(${step.color})`;
   }
   nodes.forEach(n=>{
     if(n===a || n===b) return;
@@ -1380,16 +1403,12 @@ function applyStep(){
   /* route bubble */
   panelRoute.innerHTML = `<span class="from">${prettyId(step.from)}</span><span class="arrow">→</span><span class="to">${prettyId(step.to)}</span><span style="margin-left:6px;color:var(--muted)">${step.route || ""}</span>`;
   panelDesc.innerHTML = step.desc;
-  /* payload (mode-aware) */
-  let payload = "";
-  if(step.payload) payload = step.payload;
-  else if(state.mode === "offline" && step.payloadOffline) payload = step.payloadOffline;
-  else if(state.mode === "online" && step.payloadOnline) payload = step.payloadOnline;
+  /* payload + chips (mode-aware, keyed off the active mode so renamed modes work:
+     dev → payloadDev/chipsDev, v2 → payloadV2/chipsV2, etc. No-suffix keys win. */
+  const cap = state.mode.charAt(0).toUpperCase() + state.mode.slice(1);
+  const payload = step.payload ?? step["payload" + cap] ?? "";
   panelPayload.textContent = payload;
-  /* chips */
-  let chips = step.chips;
-  if(state.mode==="offline" && step.chipsOffline) chips = step.chipsOffline;
-  if(state.mode==="online"  && step.chipsOnline)  chips = step.chipsOnline;
+  const chips = step["chips" + cap] ?? step.chips;
   panelMeta.innerHTML = (chips || []).map(c=>{
     const cls = /\d+\s*(?:ms|s|min)\b/.test(c) ? "chip lat" : (/dim|×|loaded|rules|count/.test(c) ? "chip size" : "chip");
     return `<span class="${cls}">${c}</span>`;
@@ -1428,7 +1447,8 @@ function setPlaying(p){
 function tick(){
   if(!state.playing) return;
   const total = flows[state.flow].steps.length;
-  state.step = (state.step + 1) % total;
+  if(state.step >= total - 1){ setPlaying(false); return; }  /* stop at the end, don't loop */
+  state.step += 1;
   applyStep();
   state.timer = setTimeout(tick, state.stepMs);
 }
@@ -1441,9 +1461,17 @@ function go(delta){
 }
 function pickFlow(key){
   if(!flows[key]) return;
+  const f = flows[key];
+  /* mode-exclusive flow picked from the wrong mode → switch mode inline
+     (no pickMode() call, to avoid mutual recursion with its fallback path). */
+  if(f.onlyMode && f.onlyMode !== state.mode){
+    state.mode = f.onlyMode;
+    document.querySelectorAll(".modepick button").forEach(b=>{
+      b.setAttribute("aria-pressed", b.dataset.mode === state.mode ? "true" : "false");
+    });
+  }
   state.flow = key;
   state.step = 0;
-  /* offline only flows: if mode=online, gracefully degrade */
   document.querySelectorAll(".flowtab").forEach(b=>{
     b.setAttribute("aria-pressed", b.dataset.flow === key ? "true" : "false");
   });
@@ -1508,7 +1536,7 @@ btnNext2.addEventListener("click", ()=>{ setPlaying(false); go(+1); });
    still trigger the jump-to-step behavior. Wires redraw live.
    Positions are in % of the stage dimensions for responsive layout. */
 const DRAG_THRESHOLD = 5;
-const SNAP_PX = 32;
+const SNAP_PX = 48;  /* matches the 48px background grid */
 let dragState = null;
 
 function stageRect(){ return stage.getBoundingClientRect(); }
@@ -1569,7 +1597,7 @@ function endDrag(){
   if(wasDrag){
     saveLayout();
     showResetBtn();
-    drawWires();
+    updateWirePaths();  /* geometry already current from drag; no need to rebuild SVG */
     applyStep();
   }
 
@@ -1604,7 +1632,14 @@ nodes.forEach(n=>{
 
 function handleNodeClick(n){
   const flow = flows[state.flow];
-  const i = flow.steps.findIndex(s=> s.from===n.dataset.id || s.to===n.dataset.id );
+  const id = n.dataset.id;
+  /* jump to the first step touching this node where BOTH endpoints are visible
+     in the current mode; otherwise shake (don't land on a dead step). */
+  const bothVisible = s => {
+    const a = nodeById(s.from), b = nodeById(s.to);
+    return a && b && !a.classList.contains("hidden") && !b.classList.contains("hidden");
+  };
+  const i = flow.steps.findIndex(s=> (s.from===id || s.to===id) && bothVisible(s));
   if(i>=0){
     setPlaying(false);
     state.step = i;
@@ -1618,7 +1653,16 @@ function handleNodeClick(n){
 }
 
 /* ─── layout persistence (localStorage) ─────────────────────────────── */
-const LAYOUT_KEY = "arch-layout-" + document.title.replace(/\s/g,"-").toLowerCase();
+/* Key the saved layout by title AND a hash of the node-id set, so two diagrams
+   sharing a title on the same origin don't clobber each other's positions.
+   (Adding/removing a node re-keys and drops the prior saved layout — acceptable.) */
+const LAYOUT_KEY = (()=>{
+  const ids = nodes.map(n=>n.dataset.id).join("|");
+  let h = 0;
+  for(let i=0;i<ids.length;i++){ h = (h*31 + ids.charCodeAt(i)) | 0; }
+  const title = document.title.replace(/\s/g,"-").toLowerCase();
+  return "arch-layout-" + title + "-" + (h>>>0).toString(36);
+})();
 
 function saveLayout(){
   const positions = {};
@@ -1705,6 +1749,8 @@ window.addEventListener("resize", ()=>{
 });
 
 /* boot */
+const kbFlowMax = document.getElementById("kbFlowMax");
+if(kbFlowMax) kbFlowMax.textContent = Math.min(9, CONFIG.keyboardFlowOrder.length);
 applyModeToNodes();
 requestAnimationFrame(()=>{
   drawWires();

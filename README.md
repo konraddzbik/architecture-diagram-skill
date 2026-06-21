@@ -278,7 +278,7 @@ architecture-diagram-skill/
 └── .gitignore
 ```
 
-The HTML template is the heart of the skill — Claude copies it and edits only **two regions**: the `nodes` block (HTML) and the `flows` object (JS). Everything else (player, side panel, animations, wire renderer) just works.
+The HTML template is the heart of the skill — Claude copies it and edits a handful of clearly marked regions (title/header, mode-toggle labels, flow tabs, the `.node` divs, and the `flows` object in JS; the template's top `EDIT THESE THINGS` comment is the authoritative list). Everything else (player, side panel, animations, wire renderer) just works.
 
 ---
 ## Demo
@@ -292,7 +292,7 @@ Dark theme:
 ## Customizing
 
 - **Light or dark theme:** every diagram ships with a built-in toggle (moon/sun icon, or press `T`). The preference is saved in localStorage. To make light the default, ask Claude to add `class="light"` to the `<body>` tag.
-- **Rearrange nodes:** drag any node to reposition it. Positions snap to a 32px grid and are saved to localStorage. Press `R` to reset to original positions.
+- **Rearrange nodes:** drag any node to reposition it. Positions snap to a 48px lattice and are saved to localStorage (keyed per diagram). Press `R` to reset to original positions.
 - **Fullscreen presentations:** press `F` to expand the canvas full-screen. Press `Escape` to exit.
 - **Restyle to your brand:** point Claude at `assets/css-tokens.css` and ask it to swap the palette. The tokens are standalone — splice them into the template and you're done.
 - **Add a new node role:** there are six color-coded roles built in (`user`, `orch`, `compute`, `embed`, `vector`, `seed`). Add a CSS variable for a seventh if you must, but keep the count ≤ 6 or the legend becomes hard to read.
@@ -305,6 +305,7 @@ Dark theme:
 - The diagram is a **single HTML file** — no live data, no real backend. It's a didactic tool, not a monitoring dashboard.
 - Designed for **≤ 12 nodes per diagram**. Beyond that, wire crossings get hard to avoid even with careful layout.
 - The skill produces **two artifacts** by default (`.html` and `.md`). If you only want the HTML, say so explicitly.
+- **Works offline.** The only network call is to Google Fonts, loaded non-blocking with a system-font fallback — the diagram renders and is fully interactive with no connection. Delete the three font `<link>` tags at the top of the file for a 100% self-contained, air-gapped artifact.
 
 ---
 
