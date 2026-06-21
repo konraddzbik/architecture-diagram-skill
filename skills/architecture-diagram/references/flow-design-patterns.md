@@ -52,13 +52,11 @@ If the flow you're documenting is **the seed/cron flow itself**, the rare node b
 
 ### When two nodes have the same role
 
-E.g. you have Postgres for transactional data and Redis for cache. Both are databases (role: `vector`). Don't invent a 7th color. Distinguish via:
+E.g. you have Postgres for transactional data and Redis for cache. Both are databases (role: `vector`). Distinguish via:
 
 - **Icon** (cylinder vs hexagon vs cloud)
 - **Label** (`Postgres · users` vs `Redis · session cache`)
 - **Vertical position** (Postgres lower = "source of truth"; Redis higher = "ephemeral")
-
-The legend stays 6 colors max.
 
 ---
 
@@ -209,6 +207,18 @@ This makes it visually obvious *what kind of system the data is touching at each
 
 ---
 
+## The participant state (why nodes stay visible)
+
+When a viewer picks a flow tab, every node that appears ANYWHERE in that flow stays at near-full opacity (the `participant` state) — not just the node in the current step. This is the entire point of the diagram.
+
+Without it, only the currently-active node has full color; every other node — including the source of the current step and any node used in a later step — looks dead. The viewer can't tell the LLM is *going* to be used in step 6 just by looking at the canvas; they'd have to click through all the prior steps to discover it.
+
+With it, the first click on a flow tab shows the whole story at a glance: here are the players, here are the wires connecting them, here's where step 1 happens. They can scan it before pressing play.
+
+**Implementation gotcha.** The JS (`applyStep`) and the CSS (`.node.participant`, `.wire.preview`) must stay consistent — if you add a node state, update both. Test by walking every step of every flow and confirming the source node renders `active-from` (or at least `participant`), never `dimmed`. Leaving the source `dimmed` is the common regression: it makes a live node look dead.
+
+---
+
 ## Common architecture motifs
 
 When designing, look for these motifs in your system and you'll know how to draw them:
@@ -284,6 +294,25 @@ If you're designing a new service and using the diagram as a planning tool:
 10. **Annotate payloads.** Even if the code doesn't exist yet, write the API contract you *want*. That's now your spec.
 
 The diagram you end up with is both documentation and a target. Implementation should match.
+
+---
+
+## Example JSON → template mapping
+
+The `examples/*.json` files are planning specs, not drop-in code. They capture topology and flow decomposition as JSON outlines; translate them into the template's HTML nodes + inline JS `flows` object using this map:
+
+| JSON outline (examples) | Template authoring construct |
+|---|---|
+| node `position: "left:..; top:.."` | `.node` `style="left:..;top:.."` |
+| node `label`/`tech`/`port` `{default}` | element text inside the `.node` |
+| node `label`/`tech`/`port` `{offline, online}` | `data-label-<mode>` / `data-tech-<mode>` / `data-port-<mode>` |
+| node `modes: [..]` | `data-modes="offline,online"` |
+| flow `key` | key in the JS `flows` object |
+| flow `step_outline: ["from → to : note"]` | `steps: [{from, to, color, title, route, desc, payload*, chips*}]` |
+| flow `step_outline_v1` / `_v2` | mode-specific `payload<Mode>` / `chips<Mode>` on the steps |
+| flow `only_mode` | `onlyMode` on the flow object |
+
+The outlines deliberately omit `color`, `route`, `desc`, payloads, and chips — author those per the payload/chip conventions in `SKILL.md`.
 
 ---
 

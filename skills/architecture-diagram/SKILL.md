@@ -1,15 +1,13 @@
 ---
 name: architecture-diagram
-version: 1.1.0
-description: "Build interactive, click-through architecture diagrams for software systems — single HTML file with animated step-by-step flows, mode toggles (dev/prod, offline/online, v1/v2), dark/light theme switch, and a side panel with payload details. Use whenever the user asks for a system architecture visualization, service map, data flow, RAG/agentic flow, microservices topology, integration diagram, CI/CD pipeline, data pipeline, ETL flow, multi-agent system, onboarding diagram, or wants to design a new service's flows visually. Triggers: 'architecture diagram', 'system flow', 'service map', 'data pipeline', 'CI/CD flow', 'microservices diagram', 'agentic flow', 'RAG flow', 'pipeline visualization', 'workshop diagram', 'onboarding diagram', 'pokaż jak działa system', 'diagram architektury', 'wizualizacja systemu', 'klikany diagram', 'I'm building X, what should the flow look like'. Output is a self-contained single-file HTML plus a markdown description. Do NOT use for static Mermaid/PlantUML diagrams (those go inline). Not intended for slide-deck or printable diagrams — this skill produces interactive HTML for browser consumption."
+version: 1.2.0
+description: "Build interactive, click-through architecture diagrams for software systems — a self-contained single HTML file with animated step-by-step flows, mode toggles (dev/prod, offline/online, v1/v2), dark/light theme, and a side panel with payload details, plus a companion markdown description. Use when the user wants to visualize or design a system: architecture diagram, service map, data flow, RAG/agentic flow, microservices topology, integration diagram, CI/CD or data/ETL pipeline, multi-agent system, or onboarding diagram — or to design a new service's flows before building. Natural-language triggers: 'I'm building X, what should the flow look like', 'pokaż jak działa system', 'diagram architektury', 'wizualizacja systemu', 'klikany diagram'. Do NOT use for static diagrams that belong inline (Mermaid/PlantUML), slide decks, or printable/PDF handouts — this produces interactive HTML for browser consumption."
 license: MIT
 ---
 
 # Interactive Architecture Diagrams
 
-Build single-file, drop-in HTML pages that let workshop attendees, clients, or new team members **click through how a system works** — step by step, with animated data packets flowing between nodes, payload details on the side panel, and toggleable modes (offline/online, dev/prod, v1/v2). Battle-tested on the Eskadra Bielik RAG workshop; reuse the design system everywhere else.
-
-This skill produces diagrams in a dark, didactic-first aesthetic — nodes are bounded, wires are gentle quadratic curves, packets glow only on the active step. No "AI slop" rainbow gradients. The CSS tokens are exposed in `assets/css-tokens.css` if you want to rebrand.
+Build single-file, drop-in HTML pages that let workshop attendees, clients, or new team members **click through how a system works** — step by step, with animated data packets flowing between nodes, payload details on a side panel, and toggleable modes (offline/online, dev/prod, v1/v2). The aesthetic is dark and didactic-first: bounded nodes, gentle quadratic wires, packets that glow only on the active step — no rainbow gradients. Rebrand via the CSS tokens in `assets/css-tokens.css`.
 
 ---
 
@@ -28,7 +26,7 @@ This skill produces diagrams in a dark, didactic-first aesthetic — nodes are b
 | "Add a diagram to a slide deck or PDF" (static, not interactive) | No — this produces interactive HTML, not images or slides |
 | "I just need a static boxes-and-arrows topology" (no flows/steps) | No — a Mermaid flowchart is enough |
 
-The differentiator is **interactivity + sequenced data flow**. If the value is "click through it and watch what happens", this skill applies. If the output needs to be a static image, a slide, or inline markdown, this is the wrong tool.
+The differentiator is **interactivity + sequenced data flow**: if the value is "click through it and watch what happens", use this skill; if you need a static image, a slide, or an inline diagram, use Mermaid instead.
 
 ---
 
@@ -38,7 +36,7 @@ Every diagram has four things:
 
 1. **Nodes** — services, datastores, users, queues, external systems. Each has a role (color) and metadata (tech stack, port, deployment target).
 2. **Flows** — named scenarios the user can pick (e.g. `RAG Query`, `Direct Query`, `Ingest`, `Auth`). Each flow is an ordered list of **steps**.
-3. **Steps** — `{from, to, route, payload, desc, chips}`. Each step lights up one wire and one target node.
+3. **Steps** — `{from, to, color, title, route, payload, desc, chips}`. Each step lights up one wire and one target node. (`color` and `title` are required — a missing `color` leaves the wire uncolored, a missing `title` leaves the panel header blank.)
 4. **Modes** — orthogonal toggle (offline/online, dev/prod, v1/v2). Modes can:
    - hide/show entire nodes (e.g. Seed only exists offline)
    - rename a node (Qdrant → BigQuery)
@@ -79,10 +77,15 @@ Quick rules:
 
 ### Step 3 — Build from the template
 
-Copy `assets/template.html` to the working directory. The template is a fully working drop-in: dark theme, side panel, player controls (play/pause/step), keyboard shortcuts, animated SVG packets, mode toggle. You **only edit two regions**:
+Copy `assets/template.html` to the working directory. It's a fully working drop-in: dark theme, side panel, player controls (play/pause/step), keyboard shortcuts, animated SVG packets, mode toggle. Edit only these regions (the template's top `EDIT THESE THINGS` comment is the authoritative list):
 
-1. **The `nodes` block in HTML** — one `.node` div per service with `data-id`, `data-role`, `style="left/top"`, label, tech, port.
-2. **The `flows` object in JS** — one entry per scenario, each with an ordered `steps[]` array.
+1. **`<title>` + `<h1>`** — replace `{{SYSTEM_NAME}}` and the header text.
+2. **`.modepick` buttons** — mode toggle labels (or remove if single-mode).
+3. **`.flowtabs`** — one `.flowtab` per scenario; `data-flow` must match a `flows` key.
+4. **`.node` divs** in `.stage` — one per service: `data-id`, `data-role`, `style="left/top"`, label, tech, port.
+5. **The `flows` object in JS** — one entry per scenario, each with an ordered `steps[]` array.
+
+Conditional: update the `.legend` only if your roles differ from the defaults; recolor `:root` CSS variables only for a restyle. After editing, search the file for `{{` to catch any stray `{{SYSTEM_NAME}}`/`{{FLOW_*}}` placeholders.
 
 Don't reinvent the CSS, the player, the SVG wire renderer, or the side panel — they all work.
 
@@ -125,11 +128,13 @@ Tell the user where the files were saved and how to open them (`open architectur
 | `references/flow-design-patterns.md` | When planning a new system from scratch. Heuristics for node placement, naming flows, sequencing steps, choosing modes. |
 | `references/component-library.md` | When building the nodes list. Copy-paste node snippets for User/API/DB/Queue/Cache/LLM/Cron/External/etc. with proper roles and icons. |
 | `references/screenshot.js` | When you want to spot-check the result before showing the user. Run with `node` if puppeteer-core is installed. |
-| `examples/rag-eskadra-bielik.json` | Reference example: a real RAG system with 5 flows and offline/online modes. Read for inspiration on payload formatting and chip choices. |
+| `examples/rag-eskadra-bielik.json` | Reference example: a real RAG system with 5 flows and offline/online modes. Read for topology layout, offline/online mode design (per-node tech/port swapping), and flow decomposition via `step_outline`. Payload/chip conventions are in the sections below, not the examples. |
 | `examples/auth-oauth2.json` | Reference example: an OAuth2 + session flow with dev/prod modes. Shows redirect flows and external IdP nodes. |
 | `examples/event-driven.json` | Reference example: event-driven microservices with Kafka, showing async fan-out flows. |
 | `examples/cicd-pipeline.json` | Reference example: CI/CD pipeline with GitHub Actions, staging/prod modes, rollback flow. |
 | `examples/agentic-tool-calling.json` | Reference example: agentic AI system with tool calling, single-agent vs multi-agent modes. |
+
+**The `examples/*.json` files are planning specs, not drop-in code** — JSON outlines you translate into the template's HTML nodes + inline JS `flows` object. See `references/flow-design-patterns.md` → "Example JSON → template mapping" for the field-by-field translation.
 
 ---
 
@@ -169,11 +174,7 @@ When a user picks a flow tab and lands on step N, every node and wire is classif
 | Wire | `preview` | Role color at 50% opacity, dashed | Belongs to this flow but not the active step — **shows the full path ahead** |
 | Wire | `muted` | ~8% opacity | Doesn't belong to this flow |
 
-**Why `participant` matters.** Without it, only the currently-active node has full color; every other node (including the "source" of the current step and any nodes used in later steps) looks dead. The viewer can't tell that the LLM is *going* to be used in step 6 just by looking at the canvas — they have to click through all 5 prior steps to discover it.
-
-With `participant`, the very first click on a flow tab shows the viewer: "here are the players, here are the wires connecting them, and here's where the first step happens". They can scan the whole story before pressing play. This is the entire point of the diagram.
-
-**Implementation gotcha.** Both the JS (`applyStep`) and the CSS (`.node.participant`, `.wire.preview`) need to be consistent. If you add new node states, update both. Test by walking through every step of every flow and verifying the source node has the right state — common bug is leaving the source `dimmed` (looks dead) instead of `active-from` or at least `participant`.
+**Why `participant` matters** (and the JS/CSS implementation gotchas) is detailed in `references/flow-design-patterns.md` → "The participant state". Short version: it lets a viewer see the whole path on the first click, instead of stepping through to discover which nodes a flow uses — that's the entire point of the diagram. If you add node states, keep `applyStep` and the CSS (`.node.participant`, `.wire.preview`) consistent.
 
 ---
 
@@ -189,7 +190,7 @@ The diagram supports five ways to interact, in increasing order of viewer expert
 | **Drag a node** | Reposition the node on the canvas; wires redraw live | Layout tweakers / presenters |
 | **Fullscreen (F)** | Expand canvas to fill the screen; Escape to exit | Workshop presenters |
 
-**Node click vs drag.** The template uses a 5px movement threshold to distinguish a click (jump to step) from a drag (reposition). Pointer events handle both mouse and touch. Dragged positions snap to a 32px grid matching the canvas background grid for clean alignment.
+**Node click vs drag.** A 5px movement threshold distinguishes a click (jump to step) from a drag (reposition); pointer events handle mouse and touch alike.
 
 **Node click is the easiest to miss when modifying the skill.** Three things must be in place:
 
@@ -201,10 +202,6 @@ If a node isn't part of the current flow (`.dimmed` state), clicking it shakes t
 
 Keyboard accessibility: nodes have `tabIndex=0`, Enter/Space triggers the same action as click.
 
-**Layout persistence.** When a viewer drags nodes, their positions are saved to localStorage (keyed by page title). A "reset layout" button (↻) appears in the control bar after any drag. Press `R` or click the button to restore original positions.
-
-**Progress bar.** A thin progress bar below the player controls shows how far into the current flow the viewer is. Updates on every step change.
-
 **Don't break this when adding features.** It's the only way for a viewer to think "wait, where is the LLM used?" and find out instantly. Without it, they'd have to step through all 8 steps just to discover one node's role.
 
 ---
@@ -215,25 +212,14 @@ Payloads in the side panel are monospace + minimal syntax highlight. Keep them *
 
 ```js
 {
-  // good
   payloadOffline:
 `POST /ask
 {
   "query": "Ile kosztuje parking?",
   "limit": 3,
   "temperature": 0.7
-}`,
-
-  // bad — too verbose
-  payloadOffline:
-`POST /ask HTTP/1.1
-Host: localhost:3000
-Content-Type: application/json
-User-Agent: Mozilla/5.0...
-Accept: */*
-Connection: keep-alive
-
-{ ...full 50-line body... }`
+}`
+  // avoid: full HTTP headers, User-Agent, 50-line bodies — show only the shape
 }
 ```
 
@@ -247,7 +233,7 @@ If a step is the same in both modes, use `payload` (single key). If they differ,
 
 Chips below the payload are short metadata labels. Two semantic types auto-style themselves:
 
-- **Latency** (matches `/ms|s$|min/`) — gets a stopwatch icon, e.g. `"~150ms"`, `"5-30s"`, `"timeout 120s"`
+- **Latency** (matches `/\d+\s*(?:ms|s|min)\b/`) — gets a stopwatch icon, e.g. `"~150ms"`, `"5-30s"`, `"timeout 120s"`
 - **Size/count** (matches `/dim|×|loaded|rules|count/`) — gets a database icon, e.g. `"768 dim"`, `"38 loaded"`, `"×N"`
 - **Other** — neutral, e.g. `"COSINE"`, `"baseline"`, `"idempotent"`, `"UUID5"`
 
@@ -271,9 +257,9 @@ Maximum 3 chips per step. They're hints, not specifications.
 
 **`</script>` in payloads breaks everything.** If a payload template literal contains the string `</script>` (e.g. showing an HTML snippet), the browser's HTML parser treats it as the closing tag for the main `<script>` block — killing all JS. Escape it as `<\/script>` or `&lt;/script&gt;` inside template literals. This also applies to any `</style>` or similar closing tags in payload strings.
 
-**Source node looks dead.** If after refactoring the source node of the current step appears `dimmed` instead of `active-from`, you regressed the participant logic. See the "Visual states" section. Test by clicking each flow tab in turn and verifying every node that EVER appears in the flow stays visible at near-full opacity.
+**Source node looks dead.** If a step's source node renders `dimmed` instead of `active-from`, you regressed the participant logic — see "Visual states".
 
-**Wire crossings.** Caused by bad node placement, not bad code. If two steps cross, swap node positions. The template auto-curves wires in alternating directions per step index, which helps but doesn't fix bad layout.
+**Wire crossings.** Caused by node placement, not code — swap node positions to fix. (The template auto-curves wires in alternating directions per step index, which helps but won't fix a bad layout.)
 
 **Too many flows.** More than 6 flows clutters the tab bar. If you have 8+, group them: one diagram per group (e.g. "read flows" vs "write flows" as two separate HTML files).
 
@@ -298,7 +284,7 @@ If a user asks for something the template doesn't support, here's the difficulty
 | New mode (3rd one) | small | Add button to `.modepick`, extend `state.mode` switch, add `payloadX` fields to steps |
 | Different brand colors | small | Edit CSS variables in `:root` (see `assets/css-tokens.css`) |
 | Light theme | built-in | Click the moon/sun button or press `T`. To make light the default, add `class="light"` to `<body>`. |
-| Drag-and-drop nodes | built-in | Already supported — drag any node; positions snap to 32px grid and persist in localStorage. |
+| Drag-and-drop nodes | built-in | Already supported — drag any node; positions snap to a 48px lattice and persist in localStorage (keyed by page title — give each diagram a unique title, or same-title diagrams on one origin share saved layout). |
 | Fullscreen mode | built-in | Press `F` or click the expand icon. Press `Escape` to exit. |
 | Layout reset | built-in | Press `R` or click the ↻ button (appears after any drag). |
 | Progress bar | built-in | Thin bar below player shows step position in current flow. |
