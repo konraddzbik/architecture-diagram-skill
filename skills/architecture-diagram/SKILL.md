@@ -1,6 +1,6 @@
 ---
 name: architecture-diagram
-version: 1.2.0
+version: 1.3.0
 description: "Build interactive, click-through architecture diagrams for software systems — a self-contained single HTML file with animated step-by-step flows, mode toggles (dev/prod, offline/online, v1/v2), dark/light theme, and a side panel with payload details, plus a companion markdown description. Use when the user wants to visualize or design a system: architecture diagram, service map, data flow, RAG/agentic flow, microservices topology, integration diagram, CI/CD or data/ETL pipeline, multi-agent system, or onboarding diagram — or to design a new service's flows before building. Natural-language triggers: 'I'm building X, what should the flow look like', 'pokaż jak działa system', 'diagram architektury', 'wizualizacja systemu', 'klikany diagram'. Do NOT use for static diagrams that belong inline (Mermaid/PlantUML), slide decks, or printable/PDF handouts — this produces interactive HTML for browser consumption."
 license: MIT
 ---
@@ -288,6 +288,8 @@ If a user asks for something the template doesn't support, here's the difficulty
 | Fullscreen mode | built-in | Press `F` or click the expand icon. Press `Escape` to exit. |
 | Layout reset | built-in | Press `R` or click the ↻ button (appears after any drag). |
 | Progress bar | built-in | Thin bar below player shows step position in current flow. |
+| Flow note line | built-in | Set `note` on a flow (and `onlineNote` on an `onlyMode` flow); it renders under the player. |
+| Reduced motion | built-in | Honors `prefers-reduced-motion`: the flying packet is hidden and transitions collapse. |
 | Parallel steps (two simultaneous wires) | medium | Group steps as `{parallel: [step, step]}`; player advances both |
 | Branching flows (if-then-else) | hard | Currently linear. Either fork into separate flows or add a `branch` field with UI for picking the branch. |
 | Saving state in URL | small | Hash-based: `#mode=online&flow=ask&step=3` — parse in boot, update on changes |
