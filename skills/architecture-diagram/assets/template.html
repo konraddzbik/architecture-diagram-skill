@@ -251,6 +251,13 @@
     padding: 0 10px; min-width: 64px; text-align:center;
   }
 
+  /* flow-level note (the flow's `note`, plus an offline-only hint from `onlineNote`) */
+  .flow-note{
+    font-family: var(--mono); font-size: 11px; color: var(--dim);
+    margin: 8px 0 0; line-height: 1.4;
+  }
+  .flow-note:empty{ display:none; }
+
   /* flow progress bar */
   .progress-track{
     width:100%; height: 3px; background: var(--border);
@@ -582,6 +589,17 @@
     outline: 2px solid var(--brand-mint); outline-offset: 2px;
   }
 
+  /* Respect users who ask for reduced motion: no flying packet, near-instant transitions. */
+  @media (prefers-reduced-motion: reduce){
+    *{
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+    .packet{ display: none !important; }
+    .progress-fill{ transition: none !important; }
+  }
+
   /* ───────── light theme ───────── */
   body.light{
     --bg:        #f6f7fa;
@@ -674,7 +692,7 @@
 <div class="controls">
   <!-- 2. Mode toggle. Rename or add a 3rd button if you have 3 modes.
        data-mode values become keys in JS — keep them snake_case. -->
-  <div class="modepick" role="tablist" aria-label="Deployment mode">
+  <div class="modepick" role="group" aria-label="Deployment mode">
     <button data-mode="offline" aria-pressed="true">{{MODE_A_LABEL}} <span class="pill">{{MODE_A_HINT}}</span></button>
     <button data-mode="online"  aria-pressed="false">{{MODE_B_LABEL}} <span class="pill">{{MODE_B_HINT}}</span></button>
   </div>
@@ -733,6 +751,7 @@
         <span class="stepidx" id="stepIdx">0 / 0</span>
       </div>
     </div>
+    <div class="flow-note" id="flowNote"></div>
     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
 
     <div class="stage" id="stage">
@@ -1109,6 +1128,9 @@ const state = {
   stepMs: 1800
 };
 
+/* Live check so we don't fire SMIL packet animation for reduced-motion users. */
+const reducedMotion = (()=>{ try{ return window.matchMedia("(prefers-reduced-motion: reduce)"); }catch(e){ return { matches:false }; } })();
+
 /* ─── dom refs ──────────────────────────────────────── */
 const stage = document.getElementById("stage");
 const svgWires = document.getElementById("wires");
@@ -1130,6 +1152,7 @@ const panelDesc = document.getElementById("panelDesc");
 const panelPayload = document.getElementById("panelPayload");
 const panelMeta = document.getElementById("panelMeta");
 const panelMode = document.getElementById("panelMode");
+const flowNoteEl = document.getElementById("flowNote");
 
 /* ─── helpers ───────────────────────────────────────── */
 function nodeById(id){ return nodes.find(n=>n.dataset.id===id); }
@@ -1147,6 +1170,10 @@ function applyModeToNodes(){
       const val = el.dataset[cls + modeKey];
       if(val !== undefined) el.textContent = val;
     });
+    /* a11y: expose each node as a button and keep its label announced per mode */
+    if(!n.getAttribute("role")) n.setAttribute("role","button");
+    const lbl = n.querySelector(".label");
+    if(lbl) n.setAttribute("aria-label", lbl.textContent.trim() + " — jump to its step");
     const allowedModes = n.dataset.modes;
     const visible = !allowedModes || allowedModes.split(",").includes(state.mode);
     n.classList.toggle("hidden", !visible);
@@ -1323,13 +1350,26 @@ function updateWirePaths(){
 /* highlight current step */
 function applyStep(){
   const flow = flows[state.flow];
+  /* Guard against hand-edited breakage: a missing flow key or an empty steps[]
+     would otherwise throw at boot and blank the whole diagram. */
+  if(!flow || !Array.isArray(flow.steps) || flow.steps.length === 0) return;
   const total = flow.steps.length;
+  state.step = Math.max(0, Math.min(total - 1, state.step));
   const step = flow.steps[state.step];
+  if(!step) return;
 
   stepIdx.textContent = `${state.step+1} / ${total}`;
   panelStepIdx.textContent = String(state.step+1).padStart(2,"0");
   panelStepTotal.textContent = String(total).padStart(2,"0");
   flowName.textContent = flow.name;
+
+  /* Renders the documented flow-level `note`, plus `onlineNote` for onlyMode flows. */
+  if(flowNoteEl){
+    const parts = [];
+    if(flow.note) parts.push(flow.note);
+    if(flow.onlyMode && flow.onlineNote) parts.push(flow.onlineNote);
+    flowNoteEl.textContent = parts.join(" · ");
+  }
 
   /* Compute the set of node ids that participate ANYWHERE in this flow.
      Nodes in this set stay near-full opacity (participant class) so the
@@ -1387,7 +1427,7 @@ function applyStep(){
       if(el.classList.contains("packet")){
         el.classList.add("run");
         const motion = el.querySelector("animateMotion");
-        if(motion){
+        if(motion && !reducedMotion.matches){
           try{ motion.beginElement(); }catch(e){}
         }
       }
@@ -1401,7 +1441,7 @@ function applyStep(){
   /* side panel */
   panelTitle.textContent = step.title;
   /* route bubble */
-  panelRoute.innerHTML = `<span class="from">${prettyId(step.from)}</span><span class="arrow">→</span><span class="to">${prettyId(step.to)}</span><span style="margin-left:6px;color:var(--muted)">${step.route || ""}</span>`;
+  panelRoute.innerHTML = `<span class="from">${prettyId(step.from)}</span><span class="arrow">→</span><span class="to">${prettyId(step.to)}</span><span style="margin-left:6px;color:var(--muted)">${esc(step.route || "")}</span>`;
   panelDesc.innerHTML = step.desc;
   /* payload + chips (mode-aware, keyed off the active mode so renamed modes work:
      dev → payloadDev/chipsDev, v2 → payloadV2/chipsV2, etc. No-suffix keys win. */
@@ -1411,7 +1451,7 @@ function applyStep(){
   const chips = step["chips" + cap] ?? step.chips;
   panelMeta.innerHTML = (chips || []).map(c=>{
     const cls = /\d+\s*(?:ms|s|min)\b/.test(c) ? "chip lat" : (/dim|×|loaded|rules|count/.test(c) ? "chip size" : "chip");
-    return `<span class="${cls}">${c}</span>`;
+    return `<span class="${cls}">${esc(c)}</span>`;
   }).join("");
 
   /* button states */
@@ -1444,11 +1484,24 @@ function setPlaying(p){
     state.timer = setTimeout(tick, state.stepMs);
   }
 }
+/* A step is "playable" only if both endpoints exist AND are visible in the
+   current mode. Stepping/autoplaying onto an unplayable step would show a dead
+   frame (no lit node, no wire, no packet) while the panel still shows text. */
+function stepPlayable(i){
+  const flow = flows[state.flow];
+  const s = flow.steps[i];
+  if(!s) return false;
+  const a = nodeById(s.from), b = nodeById(s.to);
+  return !!(a && b && !a.classList.contains("hidden") && !b.classList.contains("hidden"));
+}
+
 function tick(){
   if(!state.playing) return;
   const total = flows[state.flow].steps.length;
-  if(state.step >= total - 1){ setPlaying(false); return; }  /* stop at the end, don't loop */
-  state.step += 1;
+  let next = state.step + 1;
+  while(next < total && !stepPlayable(next)) next++;  /* skip dead steps */
+  if(next >= total){ setPlaying(false); return; }     /* stop at the end, don't loop */
+  state.step = next;
   applyStep();
   state.timer = setTimeout(tick, state.stepMs);
 }
@@ -1456,11 +1509,22 @@ function tick(){
 /* ─── nav ──────────────────────────────────────────── */
 function go(delta){
   const total = flows[state.flow].steps.length;
-  state.step = Math.max(0, Math.min(total-1, state.step + delta));
+  const dir = delta < 0 ? -1 : 1;
+  let remaining = Math.abs(delta) || 1;
+  let i = state.step;
+  while(remaining > 0){
+    let next = i + dir;
+    while(next >= 0 && next < total && !stepPlayable(next)) next += dir;  /* skip dead steps */
+    if(next < 0 || next >= total) break;
+    i = next;
+    remaining--;
+  }
+  state.step = Math.max(0, Math.min(total-1, i));
   applyStep();
 }
 function pickFlow(key){
   if(!flows[key]) return;
+  setPlaying(false);  /* don't let a pending autoplay timer resume on the new flow */
   const f = flows[key];
   /* mode-exclusive flow picked from the wrong mode → switch mode inline
      (no pickMode() call, to avoid mutual recursion with its fallback path). */
@@ -1480,6 +1544,7 @@ function pickFlow(key){
   applyStep();
 }
 function pickMode(m){
+  setPlaying(false);  /* stop autoplay so it doesn't resume mid-switch */
   state.mode = m;
   document.querySelectorAll(".modepick button").forEach(b=>{
     b.setAttribute("aria-pressed", b.dataset.mode === m ? "true" : "false");
@@ -1510,8 +1575,8 @@ function toggleTheme(){
   document.body.classList.toggle("light");
   const isLight = document.body.classList.contains("light");
   try{ localStorage.setItem("arch-theme", isLight ? "light" : "dark"); }catch(e){}
-  drawWires();
-  applyStep();
+  /* No redraw needed: wire/packet/label colors resolve from live CSS variables,
+     which re-evaluate automatically when the .light class flips :root. */
 }
 btnTheme.addEventListener("click", toggleTheme);
 try{
@@ -1542,7 +1607,6 @@ let dragState = null;
 function stageRect(){ return stage.getBoundingClientRect(); }
 
 function startDrag(n, clientX, clientY){
-  const sr = stageRect();
   const nr = n.getBoundingClientRect();
   dragState = {
     node: n,
@@ -1625,6 +1689,7 @@ nodes.forEach(n=>{
   n.addEventListener("keydown", (e)=>{
     if(e.key === "Enter" || e.key === " "){
       e.preventDefault();
+      e.stopPropagation();  /* don't also trigger the window Space=play handler */
       handleNodeClick(n);
     }
   });
@@ -1642,6 +1707,9 @@ function handleNodeClick(n){
   const i = flow.steps.findIndex(s=> (s.from===id || s.to===id) && bothVisible(s));
   if(i>=0){
     setPlaying(false);
+    /* pointerdown preventDefault suppresses native focus; focus here so keyboard
+       users who click a node can then Tab/arrow from it. */
+    try{ n.focus({ preventScroll:true }); }catch(e){}
     state.step = i;
     applyStep();
   } else {
@@ -1722,7 +1790,12 @@ btnFullscreen.addEventListener("click", toggleFullscreen);
 
 /* ─── keyboard ─────────────────────────────────────────────────────── */
 window.addEventListener("keydown",(e)=>{
-  if(e.target.closest("input,textarea")) return;
+  const t = e.target;
+  if(t && t.closest && t.closest("input,textarea,[contenteditable=''],[contenteditable='true']")) return;
+  /* Never hijack browser/OS shortcuts (Cmd+R reload, Cmd+T new tab, Alt+←/→ history). */
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  /* Let a focused button/tab handle its own Space/Enter activation instead of toggling play. */
+  if((e.code === "Space" || e.key === "Enter") && t && t.closest && t.closest("button,[role=button]")) return;
   if(e.code === "Space"){ e.preventDefault(); setPlaying(!state.playing); }
   else if(e.key === "ArrowRight"){ setPlaying(false); go(+1); }
   else if(e.key === "ArrowLeft"){ setPlaying(false); go(-1); }

@@ -84,18 +84,22 @@ That's it. The skill activates automatically whenever you ask for an architectur
 
 ### Claude Code — manual clone
 
+The skill lives in `skills/architecture-diagram/` inside this repo, so clone to a temp
+dir and copy that subfolder into place (Claude Code discovers `SKILL.md` exactly one
+level under `skills/` — cloning the whole repo would nest it too deep).
+
 Personal install (available in all your projects):
 
 ```bash
-git clone https://github.com/konraddzbik/architecture-diagram-skill \
-  ~/.claude/skills/architecture-diagram
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram ~/.claude/skills/architecture-diagram
 ```
 
 Project install (committed to a repo, shared with your team):
 
 ```bash
-git clone https://github.com/konraddzbik/architecture-diagram-skill \
-  .claude/skills/architecture-diagram
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram .claude/skills/architecture-diagram
 ```
 
 ### Gemini CLI (recommended: one command)
@@ -193,13 +197,15 @@ cp -r /tmp/arch-skill/skills/architecture-diagram .opencode/skills/architecture-
 Personal install — available in all your projects:
 
 ```bash
-git clone https://github.com/konraddzbik/architecture-diagram-skill ~/.config/opencode/skills/architecture-diagram
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram ~/.config/opencode/skills/architecture-diagram
 ```
 
 Or use the Claude-compatible path (OpenCode reads `.claude/skills/` too):
 
 ```bash
-git clone https://github.com/konraddzbik/architecture-diagram-skill ~/.claude/skills/architecture-diagram
+git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+cp -r /tmp/arch-skill/skills/architecture-diagram ~/.claude/skills/architecture-diagram
 ```
 
 The skill activates automatically when you ask for an architecture diagram, system flow, RAG pipeline, etc.
