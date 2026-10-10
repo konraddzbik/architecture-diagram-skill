@@ -1,9 +1,13 @@
 {
   "name": "architecture-diagram",
   "description": "Build interactive, click-through architecture diagrams as a single HTML file. Animated step-by-step flows, mode toggles, dark/light theme, side panel with payloads.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": {
     "name": "Konrad Dzbik",
     "url": "https://github.com/konraddzbik"
-  }
+  },
+  "homepage": "https://github.com/konraddzbik/architecture-diagram-skill",
+  "repository": "https://github.com/konraddzbik/architecture-diagram-skill",
+  "license": "MIT",
+  "keywords": ["architecture", "diagram", "visualization", "system-design", "rag", "microservices", "interactive"]
 }

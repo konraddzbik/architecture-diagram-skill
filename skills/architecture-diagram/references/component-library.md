@@ -126,7 +126,7 @@ Use this when filling out the nodes section in the template.
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44A2.5 2.5 0 0 1 4 18a2.5 2.5 0 0 1-1.55-4.45A2.5 2.5 0 0 1 4 9a2.5 2.5 0 0 1 1.55-4.45A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44A2.5 2.5 0 0 0 20 18a2.5 2.5 0 0 0 1.55-4.45A2.5 2.5 0 0 0 20 9a2.5 2.5 0 0 0-1.55-4.45A2.5 2.5 0 0 0 14.5 2z"/></svg>
   </div>
   <div class="label">LLM</div>
-  <div class="tech">Claude Sonnet 4.6 / GPT-4o / Llama</div>
+  <div class="tech">Claude Sonnet 5.5 / GPT-5 / Llama</div>
   <div class="port">api.anthropic.com</div>
   <span class="step-badge">·</span>
 </div>

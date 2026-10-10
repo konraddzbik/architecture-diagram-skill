@@ -1,6 +1,6 @@
 ---
 name: architecture-diagram
-version: 1.3.0
+version: 1.4.0
 description: "Build interactive, click-through architecture diagrams for software systems — a self-contained single HTML file with animated step-by-step flows, mode toggles (dev/prod, offline/online, v1/v2), dark/light theme, and a side panel with payload details, plus a companion markdown description. Use when the user wants to visualize or design a system: architecture diagram, service map, data flow, RAG/agentic flow, microservices topology, integration diagram, CI/CD or data/ETL pipeline, multi-agent system, or onboarding diagram — or to design a new service's flows before building. Natural-language triggers: 'I'm building X, what should the flow look like', 'pokaż jak działa system', 'diagram architektury', 'wizualizacja systemu', 'klikany diagram'. Do NOT use for static diagrams that belong inline (Mermaid/PlantUML), slide decks, or printable/PDF handouts — this produces interactive HTML for browser consumption."
 license: MIT
 ---
@@ -36,7 +36,7 @@ Every diagram has four things:
 
 1. **Nodes** — services, datastores, users, queues, external systems. Each has a role (color) and metadata (tech stack, port, deployment target).
 2. **Flows** — named scenarios the user can pick (e.g. `RAG Query`, `Direct Query`, `Ingest`, `Auth`). Each flow is an ordered list of **steps**.
-3. **Steps** — `{from, to, color, title, route, payload, desc, chips}`. Each step lights up one wire and one target node. (`color` and `title` are required — a missing `color` leaves the wire uncolored, a missing `title` leaves the panel header blank.)
+3. **Steps** — `{from, to, color, title, route, payload, desc, chips}`. Each step lights up one wire and one target node. (`color` and `title` are required — `color` must be a CSS variable name like `--c-orch`, anything else falls back to the brand accent; a missing `title` shows "—".) A step with `from === to` renders as a loop above that node (internal work such as "CI → CI: build").
 4. **Modes** — orthogonal toggle (offline/online, dev/prod, v1/v2). Modes can:
    - hide/show entire nodes (e.g. Seed only exists offline)
    - rename a node (Qdrant → BigQuery)
@@ -79,13 +79,13 @@ Quick rules:
 
 Copy `assets/template.html` to the working directory. It's a fully working drop-in: dark theme, side panel, player controls (play/pause/step), keyboard shortcuts, animated SVG packets, mode toggle. Edit only these regions (the template's top `EDIT THESE THINGS` comment is the authoritative list):
 
-1. **`<title>` + `<h1>`** — replace `{{SYSTEM_NAME}}` and the header text.
-2. **`.modepick` buttons** — mode toggle labels (or remove if single-mode).
-3. **`.flowtabs`** — one `.flowtab` per scenario; `data-flow` must match a `flows` key.
+1. **`<title>` + `<h1>`** — replace `{{SYSTEM_NAME}}` and the header text. For a Polish (or other non-English) diagram also set `<html lang="pl">`.
+2. **`.modepick` buttons** — mode toggle labels (or remove the whole `.modepick` if single-mode; the panel badge and `O` key adapt). Three or more modes are fine — `O` cycles through them.
+3. **`.flowtabs`** — one `.flowtab` per scenario; `data-flow` must match a `flows` key. Tab order = keyboard digits `1`–`9`; nothing else to keep in sync.
 4. **`.node` divs** in `.stage` — one per service: `data-id`, `data-role`, `style="left/top"`, label, tech, port.
-5. **The `flows` object in JS** — one entry per scenario, each with an ordered `steps[]` array.
+5. **The `flows` object in JS** — one entry per scenario, each with an ordered `steps[]` array. Set `state.mode` / `state.flow` to the keys you want shown first (an unknown key falls back to the first button and logs a warning).
 
-Conditional: update the `.legend` only if your roles differ from the defaults; recolor `:root` CSS variables only for a restyle. After editing, search the file for `{{` to catch any stray `{{SYSTEM_NAME}}`/`{{FLOW_*}}` placeholders.
+Conditional: update the `.legend` only if your roles differ from the defaults; recolor `:root` CSS variables only for a restyle. After editing, search the file for `{{` to catch any stray `{{SYSTEM_NAME}}`/`{{FLOW_*}}` placeholders — the page also lints itself at boot and prints any leftover placeholder, unknown node id, or tab/flow mismatch to the browser console (`window.archValidate()` returns the same list).
 
 Don't reinvent the CSS, the player, the SVG wire renderer, or the side panel — they all work.
 
@@ -99,7 +99,7 @@ After generating, do this self-check:
 - [ ] Mode swap: pick the most different node between modes (usually the database) and verify ALL its mode-dependent fields are filled in (label, tech, port, payload, chips).
 - [ ] Did you generate the companion `architecture.md`? (Required — see Step 6.)
 
-If puppeteer is available in the environment, **take a screenshot** to spot-check layout. Code in `references/screenshot.js`.
+If `puppeteer-core` and a Chrome/Chromium binary are available, **run `node references/screenshot.js architecture.html`**. It captures desktop + phone previews, prints the page's own integrity warnings, and exits non-zero if the diagram threw a JavaScript error — treat a non-zero exit as "fix the HTML before showing it".
 
 ### Step 5 — Output the files
 
@@ -184,13 +184,13 @@ The diagram supports five ways to interact, in increasing order of viewer expert
 
 | Interaction | What happens | Who uses it |
 |---|---|---|
-| Click flow tab | Jump to step 1 of that flow, side panel updates | Everyone |
-| Click Next/Prev (or →/←, Space) | Advance/rewind one step | Workshop attendees walking through |
+| Click flow tab | Jump to the first playable step of that flow, side panel updates | Everyone |
+| Click Next/Prev (or →/←, Space) | Advance/rewind one step; Play at the end restarts the flow | Workshop attendees walking through |
 | **Click a node** | Jump to the first step where this node appears | Curious viewers exploring |
-| **Drag a node** | Reposition the node on the canvas; wires redraw live | Layout tweakers / presenters |
-| **Fullscreen (F)** | Expand canvas to fill the screen; Escape to exit | Workshop presenters |
+| **Drag a node** (mouse/pen) or **Shift+Arrows** on a focused node | Reposition the node on the canvas; wires redraw live; layout saved per browser | Layout tweakers / presenters |
+| **Fullscreen (F)** | Canvas fills the screen with the controls bar on top, flow tabs at the bottom, and the side panel as an overlay; Escape or the same button exits | Workshop presenters |
 
-**Node click vs drag.** A 5px movement threshold distinguishes a click (jump to step) from a drag (reposition); pointer events handle mouse and touch alike.
+**Node click vs drag.** A 5px movement threshold distinguishes a click (jump to step) from a drag (reposition). On touch screens nodes are tap-to-jump only, so swiping over a node still scrolls the page.
 
 **Node click is the easiest to miss when modifying the skill.** Three things must be in place:
 
@@ -200,7 +200,7 @@ The diagram supports five ways to interact, in increasing order of viewer expert
 
 If a node isn't part of the current flow (`.dimmed` state), clicking it shakes the node instead of doing nothing. Silent ignore is bad UX — the viewer thinks the page is broken.
 
-Keyboard accessibility: nodes have `tabIndex=0`, Enter/Space triggers the same action as click.
+Keyboard accessibility: nodes have `tabIndex=0`, Enter/Space triggers the same action as click, Shift+Arrows moves the node one grid cell. Step changes are announced through a live region. Single-key shortcuts can be switched off via the "shortcuts on" link under the tabs (WCAG 2.1.4).
 
 **Don't break this when adding features.** It's the only way for a viewer to think "wait, where is the LLM used?" and find out instantly. Without it, they'd have to step through all 8 steps just to discover one node's role.
 
@@ -225,7 +225,9 @@ Payloads in the side panel are monospace + minimal syntax highlight. Keep them *
 
 Use 4-space indent, no tabs. Use `// comments` for inline annotations.
 
-If a step is the same in both modes, use `payload` (single key). If they differ, use `payloadOffline` + `payloadOnline` (or whatever the mode names are).
+If a step is the same in both modes, use `payload` (single key). If they differ, use `payloadOffline` + `payloadOnline` (or whatever the mode names are: `payload` + capitalized mode key, so mode `prod` → `payloadProd`). **The mode-specific key wins** when both are present — handy for "generic payload, one mode overrides it". Same rule for `chips` / `chipsOffline`. An object instead of a string is pretty-printed as JSON.
+
+`desc` accepts inline HTML only: `<em>`, `<strong>`, `<code>`, `<kbd>`, `<br>`, `<a href="https://…">`. Everything else is stripped at render time (block tags unwrap, scripts/iframes are dropped) — keep descriptions to a sentence or three.
 
 ---
 
@@ -255,7 +257,11 @@ Maximum 3 chips per step. They're hints, not specifications.
 
 ## Common pitfalls
 
-**`</script>` in payloads breaks everything.** If a payload template literal contains the string `</script>` (e.g. showing an HTML snippet), the browser's HTML parser treats it as the closing tag for the main `<script>` block — killing all JS. Escape it as `<\/script>` or `&lt;/script&gt;` inside template literals. This also applies to any `</style>` or similar closing tags in payload strings.
+**`</script>` in any string breaks everything.** If a payload, desc, title, or chip contains the string `</script>` (e.g. showing an HTML snippet), the browser's HTML parser treats it as the closing tag for the main `<script>` block — killing all JS. Escape it as `<\/script>` or `&lt;/script&gt;` inside template literals. This also applies to `</style>` and similar closing tags.
+
+**The page lints itself.** Open the browser console (or run `references/screenshot.js`): warnings list unknown node ids in steps, flow tabs without a `flows` entry (and vice versa), unknown `onlyMode` / `data-modes` values, missing `title`/`color`, and leftover `{{PLACEHOLDERS}}`. A clean console is part of "done".
+
+**Content Security Policy.** The template ships a CSP `<meta>` that allows only inline script/style and Google Fonts. If a user asks for an external image, script, or font, extend the matching directive (or they'll see a blocked request in the console).
 
 **Source node looks dead.** If a step's source node renders `dimmed` instead of `active-from`, you regressed the participant logic — see "Visual states".
 
@@ -281,11 +287,12 @@ If a user asks for something the template doesn't support, here's the difficulty
 |---|---|---|
 | New node | trivial | Add `.node` div, position via `left/top` % |
 | New flow | trivial | Add entry to `flows` object |
-| New mode (3rd one) | small | Add button to `.modepick`, extend `state.mode` switch, add `payloadX` fields to steps |
 | Different brand colors | small | Edit CSS variables in `:root` (see `assets/css-tokens.css`) |
 | Light theme | built-in | Click the moon/sun button or press `T`. To make light the default, add `class="light"` to `<body>`. |
-| Drag-and-drop nodes | built-in | Already supported — drag any node; positions snap to a 48px lattice and persist in localStorage (keyed by page title — give each diagram a unique title, or same-title diagrams on one origin share saved layout). |
-| Fullscreen mode | built-in | Press `F` or click the expand icon. Press `Escape` to exit. |
+| Drag-and-drop nodes | built-in | Already supported — drag any node (mouse/pen) or Shift+Arrow a focused one; positions snap to a 48px lattice and persist in localStorage (keyed by page title + node-id set — give each diagram a unique title). |
+| Fullscreen mode | built-in | Press `F` or click the expand icon. Controls bar, flow tabs and the side panel stay reachable; `Escape` or the button exits. |
+| Self-step (internal work) | built-in | A step with `from === to` draws a loop above the node. |
+| Three or more modes | small | Add a button to `.modepick`; add `payload<Mode>` / `chips<Mode>` / `data-*-<mode>` fields. `O` cycles through all modes automatically. |
 | Layout reset | built-in | Press `R` or click the ↻ button (appears after any drag). |
 | Progress bar | built-in | Thin bar below player shows step position in current flow. |
 | Flow note line | built-in | Set `note` on a flow (and `onlineNote` on an `onlyMode` flow); it renders under the player. |

@@ -137,6 +137,13 @@ Common 4-step pattern for "fire and forget":
 
 **Split** if there's an interesting intermediate value to show in a payload, or if a failure between them is meaningfully different from a failure inside them. *"Embed text"* and *"Search vectors"* are separate steps because the embedding is a meaningful intermediate value worth showing.
 
+### Internal work can be a self-step
+
+A step whose `from` and `to` are the same node ("CI → CI: lint, test, build",
+"Code Agent → Code Agent: execute in sandbox") renders as a loop above that
+node. Use it sparingly — once per flow at most — to show meaningful internal
+work whose output is worth a payload; don't use it to pad step counts.
+
 ### Round trips count as two steps
 
 If A asks B for data and gets a response, that's two steps (A→B, B→A), not one. Each has a different payload — request vs response — and each lights up a different wire direction. Keep them separate.
