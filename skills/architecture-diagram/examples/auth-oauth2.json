@@ -49,7 +49,7 @@
       "key": "login",
       "name": "OAuth2 Login (Authorization Code + PKCE)",
       "purpose": "Initial user login. Redirects to IdP, comes back with code, exchanges for tokens.",
-      "step_count": 7,
+      "step_count": 8,
       "step_outline": [
         "user → client : GET /login  (generates PKCE verifier+challenge)",
         "client → user : 302 redirect to IdP authorize URL with code_challenge",

@@ -17,7 +17,17 @@
   --border-2:  #2a3650;   /* hover/elevated line */
   --text:      #e6edf7;   /* primary text */
   --muted:     #8492a8;   /* secondary text */
-  --dim:       #5a6679;   /* tertiary text, footnotes */
+  --dim:       #7a889e;   /* tertiary text, footnotes — keep ≥ 4.5:1 on --bg */
+
+  /* ─── ACCENT INKS ─── colors used AS TEXT on surfaces (pills, mode badge,
+     play icon, focus ring, h1 gradient start). Dark can reuse the role colors;
+     light needs darker inks to stay readable (see light block below). */
+  --accent-fg:  #46f9b8;
+  --accent-bg:  rgba(70,249,184,.14);
+  --mode-a-fg:  #6aa9ff;   /* first mode button's pill  (offline / dev / v1) */
+  --mode-a-bg:  rgba(106,169,255,.16);
+  --mode-b-fg:  #d9a6ff;   /* second mode button's pill (online / prod / v2) */
+  --mode-b-bg:  rgba(162,1,255,.18);
 
   /* ─── COMPONENT ROLES ─── 6 slots. Assign per node via data-role.
      The CSS variable name is referenced from JS step `color` fields. */
@@ -67,7 +77,14 @@ body.light {
   --border-2:  #c8d0dd;
   --text:      #0f1419;
   --muted:     #555f70;
-  --dim:       #8492a8;
+  --dim:       #5f6b7e;
+
+  --accent-fg:  #00714a;
+  --accent-bg:  rgba(0,179,119,.12);
+  --mode-a-fg:  #1f5fc4;
+  --mode-a-bg:  rgba(42,111,219,.12);
+  --mode-b-fg:  #6d28d9;
+  --mode-b-bg:  rgba(122,28,217,.12);
 
   --c-user:    #00b377;
   --c-orch:    #2a6fdb;

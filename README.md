@@ -31,10 +31,11 @@ Each generated diagram includes:
 - **Animated data packets** glowing along quadratic-curve wires between services
 - **Side panel** showing the current step's payload, description, and metadata chips (latency, auth headers, ports)
 - **Mode toggles** — switch between `offline/online`, `dev/prod`, or `v1/v2` to swap node labels, ports, and payloads in place
-- **Drag-and-drop nodes** — reposition any tile by dragging; snaps to grid, wires redraw live, layout saved to localStorage
-- **Player controls** — play/pause/step, keyboard shortcuts, visual progress bar
-- **Dark/light theme toggle** — switch with one click or press `T` (preference saved in localStorage)
-- **Fullscreen mode** — press `F` to expand the canvas for presentations; `Escape` to exit
+- **Drag-and-drop nodes** — reposition any tile by dragging (or Shift+Arrows on a focused node); snaps to grid, wires redraw live, layout saved to localStorage
+- **Player controls** — play/pause/step, keyboard shortcuts, visual progress bar, screen-reader announcements
+- **Dark/light theme toggle** — follows your OS preference, switch with one click or press `T` (saved in localStorage)
+- **Fullscreen mode** — press `F` to expand the canvas for presentations with the controls, flow tabs and step panel still at hand; `Escape` to exit
+- **Self-linting** — the page warns in the console about unknown node ids, flows without tabs, and leftover placeholders; `references/screenshot.js` prints the same list and fails on JavaScript errors
 
 No build step. No dependencies. One HTML file you can email, host, or open locally.
 
@@ -263,6 +264,9 @@ architecture-diagram-skill/
 ├── .claude-plugin/
 │   ├── marketplace.json              # Plugin marketplace manifest
 │   └── plugin.json                   # Plugin metadata
+├── .github/workflows/ci.yml          # Runs scripts/check.js on every push / PR
+├── scripts/
+│   └── check.js                      # Dependency-free integrity checks (versions, examples, template)
 ├── skills/
 │   └── architecture-diagram/
 │       ├── SKILL.md                  # Instructions Claude reads when activated
@@ -278,7 +282,8 @@ architecture-diagram-skill/
 │       └── references/
 │           ├── flow-design-patterns.md   # Layout heuristics, naming, sequencing
 │           ├── component-library.md      # Copy-paste node snippets
-│           └── screenshot.js             # Optional puppeteer-based layout spot-check
+│           └── screenshot.js             # Optional puppeteer-based layout spot-check (prints lint warnings)
+├── CHANGELOG.md
 ├── README.md
 ├── LICENSE
 └── .gitignore
@@ -298,8 +303,9 @@ Dark theme:
 ## Customizing
 
 - **Light or dark theme:** every diagram ships with a built-in toggle (moon/sun icon, or press `T`). The preference is saved in localStorage. To make light the default, ask Claude to add `class="light"` to the `<body>` tag.
-- **Rearrange nodes:** drag any node to reposition it. Positions snap to a 48px lattice and are saved to localStorage (keyed per diagram). Press `R` to reset to original positions.
-- **Fullscreen presentations:** press `F` to expand the canvas full-screen. Press `Escape` to exit.
+- **Rearrange nodes:** drag any node (mouse/pen) or focus it and press Shift+Arrows. Positions snap to a 48px lattice and are saved to localStorage (keyed per diagram). Press `R` to reset to original positions. On touch screens nodes are tap-to-jump so the page keeps scrolling.
+- **Fullscreen presentations:** press `F` to expand the canvas full-screen; the mode toggle, flow tabs and the step panel stay on screen. Press `Escape` to exit.
+- **Keyboard shortcuts off:** click "shortcuts on" under the flow tabs to disable the single-key shortcuts (remembered per browser).
 - **Restyle to your brand:** point Claude at `assets/css-tokens.css` and ask it to swap the palette. The tokens are standalone — splice them into the template and you're done.
 - **Add a new node role:** there are six color-coded roles built in (`user`, `orch`, `compute`, `embed`, `vector`, `seed`). Add a CSS variable for a seventh if you must, but keep the count ≤ 6 or the legend becomes hard to read.
 - **Different output language:** the skill works in English and Polish. Ask in your preferred language and the labels, descriptions, and companion markdown will match.
@@ -312,6 +318,7 @@ Dark theme:
 - Designed for **≤ 12 nodes per diagram**. Beyond that, wire crossings get hard to avoid even with careful layout.
 - The skill produces **two artifacts** by default (`.html` and `.md`). If you only want the HTML, say so explicitly.
 - **Works offline.** The only network call is to Google Fonts, loaded non-blocking with a system-font fallback — the diagram renders and is fully interactive with no connection. Delete the three font `<link>` tags at the top of the file for a 100% self-contained, air-gapped artifact.
+- **Locked down by default.** A Content Security Policy in the file allows only its own inline code and Google Fonts; step descriptions are sanitized to inline formatting. If you hand-edit in an external image or script, extend the CSP `<meta>` first.
 
 ---
 

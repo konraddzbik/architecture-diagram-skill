@@ -58,6 +58,13 @@
       "port":  { "default": "N pods" }
     },
     {
+      "id": "stripe", "role": "seed",
+      "position": "left: 64%; top: 8%",
+      "label": { "default": "Stripe" },
+      "tech":  { "default": "External · REST · idempotency keys" },
+      "port":  { "default": "api.stripe.com" }
+    },
+    {
       "id": "orderdb", "role": "vector",
       "position": "left: 44%; top: 78%",
       "label": { "v1_monolith_compat": "Postgres (orders)", "v2_pure_events": "Read Projection (orders)" },
@@ -117,6 +124,6 @@
     "Fan-out is hard to show clearly. Each consumer becomes a separate flow rather than parallel arrows in one flow. The flow tab bar makes the parallelism obvious by listing them side-by-side.",
     "The two modes here are MIGRATION states, not deployment environments. This is unusual but valid — modes can be any orthogonal axis as long as it changes payload shape, not topology.",
     "When you have a mode that changes the SHAPE of a flow this much (6 steps vs 6 different steps), consider whether it should really be the same flow at all. Here it's worth keeping as one flow with mode-swapped payloads because the user story is identical from outside: 'place an order'.",
-    "Stripe is shown as a single named node (with a 'seed' role since it's external) only inside the billing_reaction flow. Don't pollute the main canvas with every external dependency — show each only in the flows where it's relevant. (Implementation tip: hide externals via mode or a third 'feature' toggle if needed.)"
+    "Stripe is a single named node (role 'seed' since it's external) that only participates in the billing_reaction flow; in every other flow it renders dimmed. Every node referenced by a step must exist on the canvas — don't invent per-flow nodes. Keep externals to the ones that matter; park them in a corner so they don't crowd the mainline."
   ]
 }
