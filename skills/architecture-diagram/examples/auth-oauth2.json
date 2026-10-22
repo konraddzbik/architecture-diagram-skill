@@ -17,28 +17,28 @@
     },
     {
       "id": "client", "role": "orch",
-      "position": "left: 24%; top: 40%",
+      "position": "left: 26%; top: 40%",
       "label": { "default": "App Backend" },
       "tech":  { "default": "Node.js · Express" },
       "port":  { "dev": ":3000", "prod": ":443" }
     },
     {
-      "id": "idp", "role": "embed",
-      "position": "left: 50%; top: 12%",
+      "id": "idp", "role": "ext",
+      "position": "left: 52%; top: 12%",
       "label": { "dev": "Keycloak (local)", "prod": "Auth0 / Okta" },
       "tech":  { "dev": "Keycloak 23 · Docker", "prod": "External IdP · OIDC" },
       "port":  { "dev": ":8081", "prod": "auth.example.com" }
     },
     {
       "id": "userdb", "role": "vector",
-      "position": "left: 50%; top: 72%",
+      "position": "left: 52%; top: 70%",
       "label": { "default": "User DB" },
       "tech":  { "dev": "Postgres 15 (Docker)", "prod": "RDS Postgres · Multi-AZ" },
-      "port":  { "dev": ":5432", "prod": "rds.amazonaws.com:5432" }
+      "port":  { "dev": ":5432", "prod": ":5432 · TLS" }
     },
     {
-      "id": "session", "role": "compute",
-      "position": "left: 76%; top: 40%",
+      "id": "session", "role": "vector",
+      "position": "left: 78%; top: 40%",
       "label": { "default": "Session Store" },
       "tech":  { "dev": "Redis (Docker)", "prod": "ElastiCache · TLS" },
       "port":  { "dev": ":6379", "prod": "elasticache.amazonaws.com:6379" }

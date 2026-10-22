@@ -31,7 +31,7 @@
     },
     {
       "id": "vector", "role": "vector",
-      "position": "left: 52%; top: 70%",
+      "position": "left: 52%; top: 66%",
       "label":  { "offline": "Qdrant", "online": "BigQuery" },
       "tech":   { "offline": "qdrant/qdrant v1.12.5 · hotel_rules", "online": "Vector Search · rag_dataset.hotel_rules" },
       "port":   { "offline": ":6333 · COSINE", "online": "API · COSINE" }

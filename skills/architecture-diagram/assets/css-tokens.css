@@ -29,14 +29,15 @@
   --mode-b-fg:  #d9a6ff;   /* second mode button's pill (online / prod / v2) */
   --mode-b-bg:  rgba(162,1,255,.18);
 
-  /* ─── COMPONENT ROLES ─── 6 slots. Assign per node via data-role.
+  /* ─── COMPONENT ROLES ─── 7 slots. Assign per node via data-role.
      The CSS variable name is referenced from JS step `color` fields. */
   --c-user:        #46f9b8;   /* mint     — clients, end users */
-  --c-orch:        #6aa9ff;   /* sky      — API gateways, orchestrators */
-  --c-compute:      #ff6b8a;   /* magenta  — LLMs, ML, expensive compute */
+  --c-orch:        #6aa9ff;   /* sky      — API / Service: gateways, orchestrators, internal services */
+  --c-compute:     #ff6b8a;   /* magenta  — LLMs, ML, workers, expensive compute */
   --c-embed:       #ffc14d;   /* amber    — preprocessors, transformers */
   --c-vector:      #b388ff;   /* violet   — databases, caches */
   --c-seed:        #ff9457;   /* orange   — cron, one-shot, jobs */
+  --c-ext:         #94a3b8;   /* slate    — external / 3rd-party / SaaS */
 
   /* ─── BRAND ─── for the H1 gradient and a few accent glows.
      Keep two values that look good together. */
@@ -92,6 +93,7 @@ body.light {
   --c-embed:   #c98a00;
   --c-vector:  #7a4ed1;
   --c-seed:    #d96e2c;
+  --c-ext:     #64748b;
 
   --brand-violet: #7a1cd9;
   --brand-mint:   #00b377;
@@ -114,10 +116,11 @@ body.light {
 :root {
   --c-user:    #6ee7b7;
   --c-orch:    #93c5fd;
-  --c-compute:  #fda4af;
+  --c-compute: #fda4af;
   --c-embed:   #fcd34d;
   --c-vector:  #c4b5fd;
   --c-seed:    #fdba74;
+  --c-ext:     #cbd5e1;
   --brand-violet: #6366f1;
   --brand-mint:   #10b981;
 }

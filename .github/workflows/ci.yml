@@ -18,3 +18,20 @@ jobs:
           node-version: 22
       - name: Repository integrity checks
         run: node scripts/check.js
+
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: chrome
+        uses: browser-actions/setup-chrome@v1
+      - name: Install puppeteer-core (outside the repo)
+        run: npm i --no-save --no-package-lock --prefix "$RUNNER_TEMP/pptr" puppeteer-core@24
+      - name: Headless UI regression tests
+        env:
+          NODE_PATH: ${{ runner.temp }}/pptr/node_modules
+          PUPPETEER_EXECUTABLE_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: node --test "tests/*.test.js"
