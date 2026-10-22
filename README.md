@@ -30,12 +30,12 @@ Each generated diagram includes:
 - **Named flows** — pick a scenario tab (`RAG Query`, `Login`, `Ingest`, …) and watch it play out step by step
 - **Animated data packets** glowing along quadratic-curve wires between services
 - **Side panel** showing the current step's payload, description, and metadata chips (latency, auth headers, ports)
-- **Mode toggles** — switch between `offline/online`, `dev/prod`, or `v1/v2` to swap node labels, ports, and payloads in place
-- **Drag-and-drop nodes** — reposition any tile by dragging (or Shift+Arrows on a focused node); snaps to grid, wires redraw live, layout saved to localStorage
+- **Mode toggles** — switch between `offline/online`, `dev/prod`, `v1/v2` (any keys; colors follow button order) to swap node labels, ports, and payloads in place
+- **Drag-and-drop nodes** — reposition any tile by dragging (or Shift+Arrows on a focused node); snaps to grid, wires redraw live, moved nodes saved to localStorage
 - **Player controls** — play/pause/step, keyboard shortcuts, visual progress bar, screen-reader announcements
 - **Dark/light theme toggle** — follows your OS preference, switch with one click or press `T` (saved in localStorage)
-- **Fullscreen mode** — press `F` to expand the canvas for presentations with the controls, flow tabs and step panel still at hand; `Escape` to exit
-- **Self-linting** — the page warns in the console about unknown node ids, flows without tabs, and leftover placeholders; `references/screenshot.js` prints the same list and fails on JavaScript errors
+- **Fullscreen mode** — press `F` to expand the canvas for presentations with the controls, flow tabs and step panel still at hand (below ~1140px wide the panel gives way to a one-line step summary); `Escape` to exit
+- **Self-linting** — the page warns in the console about unknown node ids, flows without tabs, and leftover placeholders; `references/screenshot.js` prints the same list and exits non-zero on JavaScript errors (`1`) or lint warnings (`2`)
 
 No build step. No dependencies. One HTML file you can email, host, or open locally.
 
@@ -213,9 +213,13 @@ The skill activates automatically when you ask for an architecture diagram, syst
 
 ### Claude.ai (web / desktop / mobile)
 
-1. Download this repo as a ZIP: **Code → Download ZIP** (or `git clone` and zip the folder)
+1. Build a ZIP with the skill folder at its root (`SKILL.md` must sit directly inside `architecture-diagram/`, so GitHub's **Download ZIP** of the whole repo won't work):
+   ```bash
+   git clone https://github.com/konraddzbik/architecture-diagram-skill /tmp/arch-skill
+   cd /tmp/arch-skill/skills && zip -r ~/architecture-diagram.zip architecture-diagram
+   ```
 2. In Claude, go to **Settings → Capabilities → Skills → Upload skill**
-3. Upload the ZIP
+3. Upload `architecture-diagram.zip`
 4. Toggle the skill **on** in your skills list
 
 ---
@@ -264,9 +268,12 @@ architecture-diagram-skill/
 ├── .claude-plugin/
 │   ├── marketplace.json              # Plugin marketplace manifest
 │   └── plugin.json                   # Plugin metadata
-├── .github/workflows/ci.yml          # Runs scripts/check.js on every push / PR
+├── .github/workflows/ci.yml          # Runs scripts/check.js and the headless UI tests on every push / PR
 ├── scripts/
 │   └── check.js                      # Dependency-free integrity checks (versions, examples, template)
+├── tests/
+│   └── ui.test.js                    # Headless-Chrome UI regression tests (puppeteer-core, see tests/README.md)
+├── evals/                            # Behavioral evals for `claude plugin eval` (see evals/README.md)
 ├── skills/
 │   └── architecture-diagram/
 │       ├── SKILL.md                  # Instructions Claude reads when activated
@@ -276,12 +283,13 @@ architecture-diagram-skill/
 │       ├── examples/
 │       │   ├── rag-eskadra-bielik.json   # Real RAG system, 5 flows, offline/online modes
 │       │   ├── auth-oauth2.json          # OAuth2 + session flow, dev/prod modes
-│       │   ├── event-driven.json         # Kafka fan-out, sync vs async modes
+│       │   ├── event-driven.json         # Kafka fan-out, v1 vs v2 migration modes
 │       │   ├── cicd-pipeline.json        # GitHub Actions deploy, staging/prod modes
 │       │   └── agentic-tool-calling.json # Multi-agent AI with tool calls
 │       └── references/
 │           ├── flow-design-patterns.md   # Layout heuristics, naming, sequencing
 │           ├── component-library.md      # Copy-paste node snippets
+│           ├── validation.md             # How to check a generated diagram (static check, screenshots, console)
 │           └── screenshot.js             # Optional puppeteer-based layout spot-check (prints lint warnings)
 ├── CHANGELOG.md
 ├── README.md
@@ -303,11 +311,11 @@ Dark theme:
 ## Customizing
 
 - **Light or dark theme:** every diagram ships with a built-in toggle (moon/sun icon, or press `T`). The preference is saved in localStorage. To make light the default, ask Claude to add `class="light"` to the `<body>` tag.
-- **Rearrange nodes:** drag any node (mouse/pen) or focus it and press Shift+Arrows. Positions snap to a 48px lattice and are saved to localStorage (keyed per diagram). Press `R` to reset to original positions. On touch screens nodes are tap-to-jump so the page keeps scrolling.
-- **Fullscreen presentations:** press `F` to expand the canvas full-screen; the mode toggle, flow tabs and the step panel stay on screen. Press `Escape` to exit.
+- **Rearrange nodes:** drag any node (mouse/pen) or focus it and press Shift+Arrows. Positions snap to a 48px lattice; the nodes you moved are saved to localStorage (keyed per diagram), the rest follow the file. Press `R` to reset to original positions. On touch screens nodes are tap-to-jump so the page keeps scrolling.
+- **Fullscreen presentations:** press `F` to expand the canvas full-screen; the mode toggle, flow tabs and the step panel stay on screen (on screens narrower than ~1140px the panel is hidden and a one-line step summary takes its place). Press `Escape` to exit.
 - **Keyboard shortcuts off:** click "shortcuts on" under the flow tabs to disable the single-key shortcuts (remembered per browser).
 - **Restyle to your brand:** point Claude at `assets/css-tokens.css` and ask it to swap the palette. The tokens are standalone — splice them into the template and you're done.
-- **Add a new node role:** there are six color-coded roles built in (`user`, `orch`, `compute`, `embed`, `vector`, `seed`). Add a CSS variable for a seventh if you must, but keep the count ≤ 6 or the legend becomes hard to read.
+- **Node roles:** seven color-coded roles are built in — `user`, `orch` (API / Service), `compute`, `embed`, `vector`, `seed` and `ext` (External: Stripe, Twilio, SaaS, hosted IdPs). Roles are color groups; the legend labels say what each color means in your diagram. An eighth role needs a `--c-<role>` variable in both the dark `:root` and `body.light` blocks, a `.node[data-role="<role>"]` rule, an arrowhead (`ahMap` entry + `<marker>`) and a legend item — rarely worth it, since more colors make the legend hard to read.
 - **Different output language:** the skill works in English and Polish. Ask in your preferred language and the labels, descriptions, and companion markdown will match.
 
 ---

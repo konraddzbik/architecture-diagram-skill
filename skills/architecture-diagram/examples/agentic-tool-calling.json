@@ -17,28 +17,28 @@
     },
     {
       "id": "orch", "role": "orch",
-      "position": "left: 24%; top: 40%",
+      "position": "left: 26%; top: 40%",
       "label": { "single_agent": "Agent (Claude)", "multi_agent": "Orchestrator Agent" },
       "tech":  { "single_agent": "Claude Sonnet 5.5 · all tools", "multi_agent": "Claude Opus 5.5 · routing only" },
       "port":  { "default": "api.anthropic.com" }
     },
     {
       "id": "search", "role": "embed",
-      "position": "left: 50%; top: 10%",
+      "position": "left: 52%; top: 10%",
       "label": { "single_agent": "Search Tool", "multi_agent": "Search Agent" },
       "tech":  { "single_agent": "tool_use · web_search", "multi_agent": "Claude Haiku 5.5 · search tools" },
       "port":  { "default": "search API" }
     },
     {
       "id": "code", "role": "compute",
-      "position": "left: 50%; top: 70%",
+      "position": "left: 52%; top: 70%",
       "label": { "single_agent": "Code Exec Tool", "multi_agent": "Code Agent" },
       "tech":  { "single_agent": "tool_use · sandbox", "multi_agent": "Claude Sonnet 5.5 · code tools" },
       "port":  { "default": "sandbox" }
     },
     {
       "id": "memory", "role": "vector",
-      "position": "left: 76%; top: 40%",
+      "position": "left: 78%; top: 40%",
       "label": { "default": "Vector Memory" },
       "tech":  { "default": "Pinecone · conversation context" },
       "port":  { "default": "pinecone.io" }

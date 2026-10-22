@@ -28,21 +28,30 @@ Good layout (organized by data flow):
 
 The reader's eye follows the request from left to right. Wires that go "backwards" (right-to-left) should mean **a response**, not another request. If you have a request going right-to-left, something's misplaced.
 
-### The five-zone canvas
+### The four-column canvas
 
-Use a left-to-right zoning. Most systems fit:
+Nodes are fixed tiles (150px wide, ~122px tall with one-line text) positioned by their top-left corner in % of a 460px-tall stage. On a 1280px laptop the stage is only ~730px wide, so one tile is already ~20% of it. Lay nodes out on the template's own grid:
 
-| Zone | X position | Typical occupants |
+| Zone | `left` | Typical occupants |
 |---|---|---|
-| **Entry** | 0–10% | User, browser, mobile, external caller, webhook source |
-| **Edge** | 20–30% | Gateway, BFF, load balancer, auth proxy |
-| **Core** | 40–55% | Orchestrators, business logic, app servers |
-| **Backends** | 60–75% | DBs, queues, caches, third-party APIs |
-| **Heavy compute** | 80–90% | LLMs, ML services, batch jobs, video transcoders |
+| **Entry** | 2% | User, browser, mobile, external caller, webhook source |
+| **Edge** | 26% | Gateway, BFF, load balancer, auth proxy |
+| **Core / Backends** | 52% | Services, orchestrators, DBs, queues, caches — core on the mainline, backends above/below it |
+| **Right edge** | 78% | LLMs, ML, workers, terminal datastores, 3rd-party APIs |
 
-Vertical placement is freer. Two heuristics:
-- **Mainline center, side concerns above/below.** The happy-path flow runs horizontally through the middle. Optional things (caches, observability, dead-letter queues) sit above or below.
-- **Read paths above, write paths below.** Mirrors how people read system diagrams.
+| Row | `top` |
+|---|---|
+| Upper | 8% |
+| Mainline | 38% |
+| Lower | 70% — fits a one-line `label`, two-line `tech`, one-line `port`; 66% if one of them takes a line more (e.g. `tech` on three lines or a long `port` on two) |
+
+Hard limits — past these, tiles overlap or get clipped at 1280px:
+- **≥ 24% between nodes in the same row** (so at most 4 per row), **`left` ≤ 78%**, **`top` ≤ 70%**.
+- Rows may use in-between columns (e.g. 13% / 39% / 65%) as long as the same-row gap holds; nodes in different rows don't overlap whatever their columns, as long as their text stays within two lines.
+- Keep `label`/`tech`/`port` to ~20 characters per line; each wrapped line adds ~15px of height. Rows are only ~15–25px apart vertically, so two stacked nodes that exchange a step get a very short wire with crowded step labels — put them in the upper and lower rows, or offset their columns.
+- 4 columns × 3 rows = 12 nodes, the practical maximum. More than that → split into sub-diagrams.
+
+Check the result: run `screenshot.js` (see `validation.md`) and look at the canvas captures for overlapping or cut-off tiles.
 
 ### One-shot and rare nodes go in a corner
 
@@ -113,7 +122,7 @@ Good step description: *"Orchestrator sends the question + retrieved context to 
 ### Step count per flow: 3 to 9
 
 Less than 3 = it's not really a flow, just a function call.
-More than 9 = you're including implementation details that don't belong in an architecture diagram.
+More than 9 = you're including implementation details that don't belong in an architecture diagram. If a flow runs past 9 only because of round trips, fold a response hop into its request step's description when the response carries no interesting payload.
 
 Common 6-step pattern for request/response with backend:
 
@@ -140,8 +149,9 @@ Common 4-step pattern for "fire and forget":
 ### Internal work can be a self-step
 
 A step whose `from` and `to` are the same node ("CI → CI: lint, test, build",
-"Code Agent → Code Agent: execute in sandbox") renders as a loop above that
-node. Use it sparingly — once per flow at most — to show meaningful internal
+"Code Agent → Code Agent: execute in sandbox") renders as a loop on that
+node (above it, or below it for a top-row node). Use it sparingly — once per
+flow at most — to show meaningful internal
 work whose output is worth a payload; don't use it to pad step counts.
 
 ### Round trips count as two steps
@@ -174,6 +184,8 @@ Modes are orthogonal to flows. The same flow can run in any mode; only the paylo
 - **batch / streaming** — when the same system supports both
 - **read replica / primary** — when caller affects routing
 
+Mode keys are free-form: the toggle's pill and the panel's mode badge are colored by button order (1st blue, 2nd violet, 3rd+ the brand accent), so put the baseline mode first.
+
 ### Bad mode candidates (don't make these modes)
 
 - **Different feature flags** — too granular; that's configuration, not topology
@@ -198,7 +210,9 @@ If a step is identical across modes, use `payload` (no suffix). Don't duplicate.
 
 ### Auto-switching modes
 
-If a flow is mode-exclusive (e.g. a "seed" flow only exists offline), set `onlyMode: "offline"` on the flow object. The runtime auto-switches users to the default flow if they pick this flow in the wrong mode. Add an `onlineNote` explaining why.
+If a flow is mode-exclusive (e.g. a "seed" flow only exists offline), set `onlyMode: "offline"` on the flow object. Picking that flow's tab from another mode switches the mode to match. Switching the mode away while on that flow falls back to `CONFIG.fallbackFlow` (or the first tab allowed in the new mode). Add an `onlineNote` explaining why the flow is mode-exclusive.
+
+The same mechanism covers a flow whose step *sequence* differs between modes (different from/to or order): every step has one `from`/`to` in every mode, so split it into one `onlyMode` flow per mode (`place_order_v1` / `place_order_v2` in `examples/event-driven.json`).
 
 ---
 
@@ -206,11 +220,9 @@ If a flow is mode-exclusive (e.g. a "seed" flow only exists offline), set `onlyM
 
 Each step has a `color` (a CSS variable). The packet, the wire, and the badge on the target node all glow this color.
 
-**Pick the color of the receiver, not the sender.** When `Orch → Embed`, color is `--c-embed`. When `Embed → Orch`, color is still `--c-embed` (because the embed service is the protagonist of this exchange).
+**Color each step by the service being talked to — the non-orchestrator endpoint — whichever way the data flows.** `Orch → Embed` and `Embed → Orch` are both `--c-embed`; `Orch → Vector` and `Vector → Orch` are both `--c-vector`. Steps to or from the user (the request coming in, the response going out) use `--c-user`, and a job kicking off work (`Seed → Orch`) uses `--c-seed`. Between two non-hub services, use the one the step is about (usually the receiver).
 
-Exception: the very final step (back to user) is colored `--c-user` — the user is the destination and that's the moment the flow completes.
-
-This makes it visually obvious *what kind of system the data is touching at each step*: gold = preprocessing, violet = storage, magenta = compute.
+This makes it visually obvious *what kind of system the data is touching at each step*: gold = preprocessing, violet = storage, magenta = compute, slate = an external system.
 
 ---
 
@@ -293,7 +305,7 @@ If you're designing a new service and using the diagram as a planning tool:
 2. **List the operations** these actors trigger. Each becomes a candidate flow.
 3. **For each operation, list the dependencies** the system calls. These become non-entry nodes.
 4. **Group dependencies by role** (db, cache, llm, queue, etc.) — assign colors.
-5. **Lay out left-to-right** following the zoning rules.
+5. **Lay out left-to-right** on the four-column grid (≥ 24% apart in a row, `left` ≤ 78%, `top` ≤ 70%).
 6. **Sketch the first flow** (the happy path) and walk through it. Does the sequence make sense? Are there missing intermediate steps?
 7. **Find wire crossings.** Reposition until clean.
 8. **Now add the second flow.** Does it reuse most of the same nodes? Good. Does it need new ones? Add them.
@@ -316,8 +328,9 @@ The `examples/*.json` files are planning specs, not drop-in code. They capture t
 | node `modes: [..]` | `data-modes="offline,online"` |
 | flow `key` | key in the JS `flows` object |
 | flow `step_outline: ["from → to : note"]` | `steps: [{from, to, color, title, route, desc, payload*, chips*}]` |
-| flow `step_outline_v1` / `_v2` | mode-specific `payload<Mode>` / `chips<Mode>` on the steps |
 | flow `only_mode` | `onlyMode` on the flow object |
+
+Per-mode differences inside one flow may only change payloads and chips (`payload<Mode>` / `chips<Mode>`), never a step's `from`/`to` or the step order. When the sequence differs, split the flow into one `only_mode` flow per mode.
 
 The outlines deliberately omit `color`, `route`, `desc`, payloads, and chips — author those per the payload/chip conventions in `SKILL.md`.
 

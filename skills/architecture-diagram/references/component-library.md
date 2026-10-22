@@ -8,6 +8,8 @@ Copy-paste node snippets for common service types. Each entry includes:
 
 Use this when filling out the nodes section in the template.
 
+Roles are color groups, not literal meanings — pick the closest of the seven (`user`, `orch`, `compute`, `embed`, `vector`, `seed`, `ext`) and relabel the `.legend` items to say what each color means in your system. The `left`/`top` values below are typical spots, not a layout: snippets in the same zone share them, so place your nodes on the grid in `flow-design-patterns.md` (≥ 24% apart in a row, `left` ≤ 78%, `top` ≤ 70% — the stage is 460px tall and a node ~125px).
+
 ---
 
 ## User-facing
@@ -86,16 +88,18 @@ Use this when filling out the nodes section in the template.
 </div>
 ```
 
-### Auth proxy / Identity Provider
+### Auth proxy (self-hosted)
+
+A hosted Identity Provider (Auth0, Okta, Entra ID) is a 3rd-party system — use the `ext` snippet under "External services".
 
 ```html
-<div class="node" data-role="orch" data-id="auth" style="left: 26%; top: 18%;">
+<div class="node" data-role="orch" data-id="auth" style="left: 26%; top: 8%;">
   <div class="icon">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
   </div>
-  <div class="label">Auth0 / Keycloak</div>
-  <div class="tech">OIDC · JWT</div>
-  <div class="port">auth.example.com</div>
+  <div class="label">Auth Proxy</div>
+  <div class="tech">oauth2-proxy · Keycloak</div>
+  <div class="port">auth.internal</div>
   <span class="step-badge">·</span>
 </div>
 ```
@@ -110,6 +114,22 @@ Use this when filling out the nodes section in the template.
   <div class="label">Load Balancer</div>
   <div class="tech">ALB / Cloud LB</div>
   <div class="port">:443 (TLS)</div>
+  <span class="step-badge">·</span>
+</div>
+```
+
+### Internal service (business / domain)
+
+Ordinary services (Orders, Payments, Users) share the `orch` color, labelled "API / Service" in the legend.
+
+```html
+<div class="node" data-role="orch" data-id="orders" style="left: 52%; top: 38%;">
+  <div class="icon">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+  </div>
+  <div class="label">Order Service</div>
+  <div class="tech">Go · gRPC</div>
+  <div class="port">:50051</div>
   <span class="step-badge">·</span>
 </div>
 ```
@@ -223,7 +243,7 @@ Use this when filling out the nodes section in the template.
 ### Blob storage
 
 ```html
-<div class="node" data-role="vector" data-id="s3" style="left: 60%; top: 85%;">
+<div class="node" data-role="vector" data-id="s3" style="left: 60%; top: 70%;">
   <div class="icon">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
   </div>
@@ -330,10 +350,12 @@ Use this when filling out the nodes section in the template.
 
 ## External services (3rd-party APIs)
 
+Role `ext` — the neutral slate "External" color — for any system you call but don't run: payment, email/SMS, SaaS (Confluence, Salesforce), hosted IdPs. Icon by what it does: link for a generic API, envelope for email/SMS, lock for an IdP, cloud for a SaaS platform. Park externals on the right edge or in a corner, away from the mainline.
+
 ### Generic 3rd-party API
 
 ```html
-<div class="node" data-role="seed" data-id="ext" style="left: 78%; top: 8%;">
+<div class="node" data-role="ext" data-id="stripe" style="left: 78%; top: 8%;">
   <div class="icon">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
   </div>
@@ -347,13 +369,27 @@ Use this when filling out the nodes section in the template.
 ### Email service
 
 ```html
-<div class="node" data-role="seed" data-id="email" style="left: 78%; top: 8%;">
+<div class="node" data-role="ext" data-id="email" style="left: 78%; top: 8%;">
   <div class="icon">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
   </div>
   <div class="label">SendGrid</div>
   <div class="tech">SMTP / API · transactional</div>
   <div class="port">api.sendgrid.com</div>
+  <span class="step-badge">·</span>
+</div>
+```
+
+### Hosted Identity Provider
+
+```html
+<div class="node" data-role="ext" data-id="idp" style="left: 52%; top: 8%;">
+  <div class="icon">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  </div>
+  <div class="label">Auth0 / Okta</div>
+  <div class="tech">OIDC · JWT</div>
+  <div class="port">auth.example.com</div>
   <span class="step-badge">·</span>
 </div>
 ```
@@ -367,7 +403,7 @@ These usually go above the mainline as visual "side concerns" rather than part o
 ### Logging / tracing
 
 ```html
-<div class="node" data-role="orch" data-id="otel" style="left: 40%; top: 88%;">
+<div class="node" data-role="orch" data-id="otel" style="left: 39%; top: 8%;">
   <div class="icon">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
   </div>

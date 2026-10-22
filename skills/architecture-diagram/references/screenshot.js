@@ -2,23 +2,36 @@
  * screenshot.js — spot-check a generated architecture.html in headless Chrome.
  *
  * Usage:
- *   1. Install the driver (no bundled browser):  npm i puppeteer-core
+ *   1. Install the driver (no bundled browser) in the directory you run from:
+ *        npm i --no-save puppeteer-core
+ *      puppeteer-core is resolved from the current working directory first, then
+ *      next to this script (and NODE_PATH), so the script can stay inside the
+ *      installed skill while the driver lives in your project or a temp dir.
  *   2. Have a Chrome/Chromium binary available. Auto-detected on macOS, Linux and
  *      Windows, or point to one explicitly:
  *        PUPPETEER_EXECUTABLE_PATH=/path/to/chrome node screenshot.js architecture.html
- *   3. Run:  node screenshot.js <path-to-architecture.html> [output-dir]
+ *   3. Run:  node <skill-dir>/references/screenshot.js <path-to-architecture.html> [output-dir]
  *
  * It captures:
  *   - default mode + first flow
  *   - alternate mode + first flow (if a second mode exists)
  *   - alternate mode + second flow (if it exists)
  *   - default mode + last flow at step 3 (to verify step animation)
- *   - a phone-width (390px) capture of the first flow
+ *   - a phone-width (390px) capture of the first flow (plus one with the canvas
+ *     scrolled to its right edge, when the diagram is wider than the phone)
+ * Every capture is full-page, so the whole canvas is visible, not just the fold.
  *
  * It also prints the template's built-in integrity warnings (unknown node ids,
- * flows without tabs, leftover {{PLACEHOLDERS}}, …) and any JavaScript errors,
- * and exits non-zero if the page threw — so an agent can treat a failing run
- * as "fix the HTML before showing it to the user".
+ * flows without tabs, leftover placeholders, …) and any JavaScript errors.
+ * Exit codes — anything non-zero means "fix the HTML before showing it":
+ *   0  rendered cleanly, no integrity warnings
+ *   1  the page threw, the diagram script never ran (window.archValidate is
+ *      missing and no wires were drawn — e.g. an unescaped </script>, or `<!--`
+ *      followed by `<script` inside a JS string), or the run itself failed
+ *      (no driver/browser/file)
+ *   2  rendered, but the integrity check reported warnings
+ * A diagram from a pre-1.4.0 template (no archValidate) is captured with a
+ * note and no integrity check.
  *
  * Output files: preview-<mode>-<flow>.png, …
  */
@@ -26,12 +39,20 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { createRequire } = require('module');
+const { pathToFileURL } = require('url');
 
+// Resolve the driver from the cwd first (where the user installed it), then
+// from this script's own location / NODE_PATH.
 let puppeteer;
-try { puppeteer = require('puppeteer-core'); }
+try { puppeteer = createRequire(path.join(process.cwd(), '/'))('puppeteer-core'); }
 catch (e) {
-  console.error('puppeteer-core not installed. Run: npm i puppeteer-core');
-  process.exit(1);
+  try { puppeteer = require('puppeteer-core'); }
+  catch (e2) {
+    console.error('puppeteer-core not found (searched the current directory, this script\'s directory and NODE_PATH).\n' +
+                  'Run `npm i --no-save puppeteer-core` in the current directory, or set NODE_PATH=<dir>/node_modules.');
+    process.exit(1);
+  }
 }
 
 // ── locate a browser ───────────────────────────────────────────────────────
@@ -126,7 +147,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   });
 
   await page.setViewport({ width: 1480, height: 920, deviceScaleFactor: 2 });
-  await page.goto(`file://${abs}`, { waitUntil: 'load' });
+  await page.goto(pathToFileURL(abs).href, { waitUntil: 'load' });
   await sleep(1200); // let fonts + first paint settle
 
   // discover modes and flows from the DOM
@@ -134,9 +155,23 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     modes: Array.from(document.querySelectorAll('.modepick button')).map(b => b.dataset.mode),
     flows: Array.from(document.querySelectorAll('.flowtab')).map(b => b.dataset.flow),
     warnings: (typeof window.archValidate === 'function') ? window.archValidate() : null,
+    // templates before v1.4.0 have no archValidate, but their script still draws the wires
+    drewWires: !!document.querySelector('#wires path.wire'),
   }));
   console.log('Modes:', meta.modes);
   console.log('Flows:', meta.flows);
+
+  if (meta.warnings === null && meta.drewWires) {
+    console.log('! No window.archValidate (diagram built from a template older than v1.4.0) — integrity check skipped.');
+    meta.warnings = [];
+  }
+  if (meta.warnings === null) {
+    console.error('✗ The diagram script did not run (window.archValidate is missing). Check for an unescaped </script>,\n' +
+                  '  a `<!--` followed by `<script` inside a JS string (write `<\\!--`), or a syntax error.');
+    pageErrors.forEach(e => console.error(`  ✗ ${e}`));
+    await browser.close();
+    process.exit(1);
+  }
 
   if (meta.flows.length === 0) {
     console.error('No .flowtab buttons found — nothing to capture.');
@@ -147,7 +182,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const captures = [];
   const captureNow = async (name) => {
     const file = path.join(outDir, `preview-${name}.png`);
-    await page.screenshot({ path: file });
+    await page.screenshot({ path: file, fullPage: true });
     captures.push(file);
     console.log(`  ✓ ${file}`);
   };
@@ -179,16 +214,24 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await sleep(400);
   await captureNow(`${mode0 || 'single'}-${probeFlow}-step3`);
 
-  // phone width: checks that nodes aren't clipped and controls wrap
+  // phone width: checks that controls wrap and nodes aren't clipped. The canvas
+  // scrolls sideways on a phone, so also capture it scrolled to the far end.
   await clickFlow(flow0);
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
   await sleep(500);
   await captureNow(`mobile-${flow0}`);
+  const scrolled = await page.evaluate(() => {
+    const c = document.querySelector('.canvas');
+    if (!c || c.scrollWidth <= c.clientWidth + 1) return false;
+    c.scrollLeft = c.scrollWidth;
+    return true;
+  });
+  if (scrolled) { await sleep(200); await captureNow(`mobile-${flow0}-scrolled`); }
 
   await browser.close();
 
   console.log(`\nCaptured ${captures.length} screenshot(s).`);
-  if (meta.warnings && meta.warnings.length) {
+  if (meta.warnings.length) {
     console.log(`\nDiagram integrity warnings (${meta.warnings.length}):`);
     meta.warnings.forEach(w => console.log(`  ! ${w}`));
   }
@@ -199,8 +242,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   if (pageErrors.length) {
     console.error('\nJavaScript errors on the page:');
     pageErrors.forEach(e => console.error(`  ✗ ${e}`));
-    process.exit(2);
+    process.exit(1);
   }
+  if (meta.warnings.length) process.exit(2);
 })().catch(e => {
   console.error('Screenshot failed:', e);
   process.exit(1);

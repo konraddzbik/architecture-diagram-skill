@@ -1,6 +1,6 @@
 ---
 name: architecture-diagram
-version: 1.4.0
+version: 1.5.0
 description: "Build interactive, click-through architecture diagrams for software systems — a self-contained single HTML file with animated step-by-step flows, mode toggles (dev/prod, offline/online, v1/v2), dark/light theme, and a side panel with payload details, plus a companion markdown description. Use when the user wants to visualize or design a system: architecture diagram, service map, data flow, RAG/agentic flow, microservices topology, integration diagram, CI/CD or data/ETL pipeline, multi-agent system, or onboarding diagram — or to design a new service's flows before building. Natural-language triggers: 'I'm building X, what should the flow look like', 'pokaż jak działa system', 'diagram architektury', 'wizualizacja systemu', 'klikany diagram'. Do NOT use for static diagrams that belong inline (Mermaid/PlantUML), slide decks, or printable/PDF handouts — this produces interactive HTML for browser consumption."
 license: MIT
 ---
@@ -36,7 +36,7 @@ Every diagram has four things:
 
 1. **Nodes** — services, datastores, users, queues, external systems. Each has a role (color) and metadata (tech stack, port, deployment target).
 2. **Flows** — named scenarios the user can pick (e.g. `RAG Query`, `Direct Query`, `Ingest`, `Auth`). Each flow is an ordered list of **steps**.
-3. **Steps** — `{from, to, color, title, route, payload, desc, chips}`. Each step lights up one wire and one target node. (`color` and `title` are required — `color` must be a CSS variable name like `--c-orch`, anything else falls back to the brand accent; a missing `title` shows "—".) A step with `from === to` renders as a loop above that node (internal work such as "CI → CI: build").
+3. **Steps** — `{from, to, color, title, route, payload, desc, chips}`. Each step lights up one wire and one target node. (`color` and `title` are required — `color` must be a CSS variable name like `--c-orch`, anything else falls back to the brand accent; a missing `title` shows "—". Color it by the non-orchestrator endpoint: `flow-design-patterns.md` → "Wire color logic".) A step with `from === to` renders as a loop on that node — above it, or below for a top-row node (internal work such as "CI → CI: build").
 4. **Modes** — orthogonal toggle (offline/online, dev/prod, v1/v2). Modes can:
    - hide/show entire nodes (e.g. Seed only exists offline)
    - rename a node (Qdrant → BigQuery)
@@ -50,20 +50,16 @@ Modes are NOT alternative flows. Flows describe **scenarios** ("user asks a ques
 
 ### Step 1 — Capture intent
 
-If the user has uploaded a SOLUTION.md, README, OpenAPI spec, or any architecture description, **read it first** before asking questions. Extract:
+If the user has uploaded a SOLUTION.md, README, OpenAPI spec, or any architecture description — or described the system in their message — **read it first**. Extract:
 
 - Service names + tech stack + ports
 - Deployment modes (if any)
 - Named endpoints/operations and what they do (these become flows)
 - For each operation, the chain of internal service calls (these become steps)
 
-Then ask ONLY the gaps. Don't ask things already in the doc.
+Then ask ONLY the gaps that can't be reasonably defaulted. If the system, its main flows and its modes (or lack of them) are known — or the user said not to ask — proceed, and list your assumptions in `architecture.md`. Defaults: audience = engineers, language = the request's.
 
-If there's no doc, ask the user briefly:
-- "What system are we drawing?"
-- "What are the main flows you want to show? (e.g. login, search, checkout)"
-- "Any mode toggles? (offline/online, dev/prod, v1/v2)"
-- "Who's the audience? Workshop attendees? Engineers? Clients?"
+Only for a vague request ("diagram our backend") ask briefly: what system, which main flows, any mode toggles (offline/online, dev/prod, v1/v2), who the audience is.
 
 ### Step 2 — Plan the topology on paper first
 
@@ -82,10 +78,10 @@ Copy `assets/template.html` to the working directory. It's a fully working drop-
 1. **`<title>` + `<h1>`** — replace `{{SYSTEM_NAME}}` and the header text. For a Polish (or other non-English) diagram also set `<html lang="pl">`.
 2. **`.modepick` buttons** — mode toggle labels (or remove the whole `.modepick` if single-mode; the panel badge and `O` key adapt). Three or more modes are fine — `O` cycles through them.
 3. **`.flowtabs`** — one `.flowtab` per scenario; `data-flow` must match a `flows` key. Tab order = keyboard digits `1`–`9`; nothing else to keep in sync.
-4. **`.node` divs** in `.stage` — one per service: `data-id`, `data-role`, `style="left/top"`, label, tech, port.
+4. **`.node` divs** in `.stage` — one per service: `data-id`, `data-role`, `style="left/top"`, label, tech, port. Place them on the grid in `references/flow-design-patterns.md` (`left` 2/26/52/78%, `top` 8/38/70%, ≥ 24% apart in a row) — fixed 150px tiles overlap or clip otherwise.
 5. **The `flows` object in JS** — one entry per scenario, each with an ordered `steps[]` array. Set `state.mode` / `state.flow` to the keys you want shown first (an unknown key falls back to the first button and logs a warning).
 
-Conditional: update the `.legend` only if your roles differ from the defaults; recolor `:root` CSS variables only for a restyle. After editing, search the file for `{{` to catch any stray `{{SYSTEM_NAME}}`/`{{FLOW_*}}` placeholders — the page also lints itself at boot and prints any leftover placeholder, unknown node id, or tab/flow mismatch to the browser console (`window.archValidate()` returns the same list).
+Always edit the `.legend`: one item per role you use, labelled with what that color means in your system (e.g. `compute` → "Worker"); delete the rest. Recolor `:root` CSS variables only for a restyle. After editing, search the file for `{{[A-Z]` (regex) — a correctly filled file has zero matches.
 
 Don't reinvent the CSS, the player, the SVG wire renderer, or the side panel — they all work.
 
@@ -97,9 +93,9 @@ After generating, do this self-check:
 - [ ] Do wires cross unnecessarily? If yes, reposition nodes (try moving the late-arriving dependency away from the early ones).
 - [ ] Are there flows where a single node is the `to` of two consecutive steps? That's fine if it's a loop, but check the description explains why.
 - [ ] Mode swap: pick the most different node between modes (usually the database) and verify ALL its mode-dependent fields are filled in (label, tech, port, payload, chips).
-- [ ] Did you generate the companion `architecture.md`? (Required — see Step 6.)
+- [ ] Did you generate the companion `architecture.md`? (Required — see Step 5.)
 
-If `puppeteer-core` and a Chrome/Chromium binary are available, **run `node references/screenshot.js architecture.html`**. It captures desktop + phone previews, prints the page's own integrity warnings, and exits non-zero if the diagram threw a JavaScript error — treat a non-zero exit as "fix the HTML before showing it".
+Then run every check in `references/validation.md` the environment allows: the static check (needs only `node`); then, with `puppeteer-core` + Chrome, `node <skill-dir>/references/screenshot.js architecture.html /tmp/arch-preview` from the user's project (`<skill-dir>` = this SKILL.md's folder; exit `1` = page error, `2` = lint warnings — non-zero means fix the HTML) and read the canvas PNGs for overlapping or cut-off tiles; without either, `window.archValidate()` in the browser console (`[]` = clean).
 
 ### Step 5 — Output the files
 
@@ -126,8 +122,8 @@ Tell the user where the files were saved and how to open them (`open architectur
 | `assets/template.html` | **Always.** This is the starting point you copy and modify. |
 | `assets/css-tokens.css` | If user asks to restyle (e.g. light theme, different brand colors). Standalone tokens you can splice into existing CSS. |
 | `references/flow-design-patterns.md` | When planning a new system from scratch. Heuristics for node placement, naming flows, sequencing steps, choosing modes. |
-| `references/component-library.md` | When building the nodes list. Copy-paste node snippets for User/API/DB/Queue/Cache/LLM/Cron/External/etc. with proper roles and icons. |
-| `references/screenshot.js` | When you want to spot-check the result before showing the user. Run with `node` if puppeteer-core is installed. |
+| `references/component-library.md` | When building the nodes list. Copy-paste node snippets for User/API/Service/DB/Queue/Cache/LLM/Cron/External/etc. with proper roles and icons. |
+| `references/validation.md` | **Step 4.** Static check (node only), how to run `references/screenshot.js` (headless-Chrome previews + lint) and its exit codes, browser-console fallback. |
 | `examples/rag-eskadra-bielik.json` | Reference example: a real RAG system with 5 flows and offline/online modes. Read for topology layout, offline/online mode design (per-node tech/port swapping), and flow decomposition via `step_outline`. Payload/chip conventions are in the sections below, not the examples. |
 | `examples/auth-oauth2.json` | Reference example: an OAuth2 + session flow with dev/prod modes. Shows redirect flows and external IdP nodes. |
 | `examples/event-driven.json` | Reference example: event-driven microservices with Kafka, showing async fan-out flows. |
@@ -145,15 +141,14 @@ Hardcoded in CSS variables in `template.html`. Pick one per node:
 | Role | Color | Use for |
 |---|---|---|
 | `user` | mint `#46f9b8` | Browser, mobile client, end user, CLI user |
-| `orch` | sky `#6aa9ff` | API gateway, orchestrator, BFF, controller |
-| `compute` | magenta `#ff6b8a` | LLM, ML model, expensive compute |
+| `orch` | sky `#6aa9ff` | API / Service: gateway, orchestrator, BFF, ordinary internal services |
+| `compute` | magenta `#ff6b8a` | LLM, ML model, worker, expensive compute |
 | `embed` | amber `#ffc14d` | Embedding service, transformer, preprocessor |
-| `vector` | violet `#b388ff` | Database (any), vector store, cache, blob storage |
+| `vector` | violet `#b388ff` | Database (any), vector store, cache, queue, blob storage |
 | `seed` | orange `#ff9457` | Cron, one-shot job, migration, seed, scheduled task |
+| `ext` | slate `#94a3b8` | External: 3rd-party / SaaS (Stripe, Twilio, Confluence, hosted IdP) |
 
-If you need more roles, add CSS variables. Keep the count ≤ 6 — past that, the legend becomes a colorblind nightmare.
-
-If your system has e.g. two distinct datastores (Postgres + Redis), still use `vector` for both but distinguish via the icon and label, not by inventing a 7th color.
+Roles are color groups, not literal meanings; the legend labels say what each color means in your diagram. Don't invent more (Postgres + Redis are both `vector`, told apart by icon and label) — past seven the legend becomes a colorblind nightmare. An 8th role needs a `--c-<role>` in the dark `:root` and `body.light` blocks, a `.node[data-role]` rule, an `ahMap` entry + `<marker>`, and a legend item.
 
 ---
 
@@ -257,15 +252,18 @@ Maximum 3 chips per step. They're hints, not specifications.
 
 ## Common pitfalls
 
-**`</script>` in any string breaks everything.** If a payload, desc, title, or chip contains the string `</script>` (e.g. showing an HTML snippet), the browser's HTML parser treats it as the closing tag for the main `<script>` block — killing all JS. Escape it as `<\/script>` or `&lt;/script&gt;` inside template literals. This also applies to `</style>` and similar closing tags.
+**Three strings kill the whole diagram.** Everything in `flows` lives inside one `<script>` block, so in any desc, title, payload or chip:
+- `</script>` closes the block early — write `<\/script>` (`&lt;/script&gt;` works only in `desc`; elsewhere it shows literally).
+- `<!--` with a `<script` anywhere after it keeps the real `</script>` from closing the block — write `<\!--`.
+- `${…}` in a backtick payload runs as JavaScript (crash, or silently wrong text). Write `\${` (e.g. `\${{ secrets.TOKEN }}`) and `` \` `` for a backtick.
 
-**The page lints itself.** Open the browser console (or run `references/screenshot.js`): warnings list unknown node ids in steps, flow tabs without a `flows` entry (and vice versa), unknown `onlyMode` / `data-modes` values, missing `title`/`color`, and leftover `{{PLACEHOLDERS}}`. A clean console is part of "done".
+**The page lints itself** (browser console, `window.archValidate()`, or `screenshot.js`): unknown node ids, tab/flow mismatches, unknown `onlyMode` / `data-modes` values, missing `title`/`color`, leftover placeholders. A clean console is part of "done".
 
 **Content Security Policy.** The template ships a CSP `<meta>` that allows only inline script/style and Google Fonts. If a user asks for an external image, script, or font, extend the matching directive (or they'll see a blocked request in the console).
 
 **Source node looks dead.** If a step's source node renders `dimmed` instead of `active-from`, you regressed the participant logic — see "Visual states".
 
-**Wire crossings.** Caused by node placement, not code — swap node positions to fix. (The template auto-curves wires in alternating directions per step index, which helps but won't fix a bad layout.)
+**Wire crossings.** Caused by node placement, not code — swap node positions to fix. (Wires bend to the right of their direction of travel, so a request and its response sit on opposite sides; repeats between one pair get wider lanes. That helps but won't fix a bad layout.)
 
 **Too many flows.** More than 6 flows clutters the tab bar. If you have 8+, group them: one diagram per group (e.g. "read flows" vs "write flows" as two separate HTML files).
 
@@ -275,7 +273,7 @@ Maximum 3 chips per step. They're hints, not specifications.
 
 **Forgetting the .md.** The HTML is the showpiece, but the .md is what people read on GitHub, paste into Slack, and grep for endpoint names. Always generate both.
 
-**Polish vs English.** Match the workshop language. Bilingual settings typically use Polish for internal workshops and English for client deliverables. Ask if unsure.
+**Polish vs English.** Match the workshop language. Bilingual settings typically use Polish for internal workshops and English for client deliverables. Default to the language of the request; ask only if it's genuinely ambiguous.
 
 ---
 
@@ -289,10 +287,10 @@ If a user asks for something the template doesn't support, here's the difficulty
 | New flow | trivial | Add entry to `flows` object |
 | Different brand colors | small | Edit CSS variables in `:root` (see `assets/css-tokens.css`) |
 | Light theme | built-in | Click the moon/sun button or press `T`. To make light the default, add `class="light"` to `<body>`. |
-| Drag-and-drop nodes | built-in | Already supported — drag any node (mouse/pen) or Shift+Arrow a focused one; positions snap to a 48px lattice and persist in localStorage (keyed by page title + node-id set — give each diagram a unique title). |
-| Fullscreen mode | built-in | Press `F` or click the expand icon. Controls bar, flow tabs and the side panel stay reachable; `Escape` or the button exits. |
-| Self-step (internal work) | built-in | A step with `from === to` draws a loop above the node. |
-| Three or more modes | small | Add a button to `.modepick`; add `payload<Mode>` / `chips<Mode>` / `data-*-<mode>` fields. `O` cycles through all modes automatically. |
+| Drag-and-drop nodes | built-in | Already supported — drag any node (mouse/pen) or Shift+Arrow a focused one; positions snap to a 48px lattice; only moved nodes are saved in localStorage (keyed by page title + node-id set — give each diagram a unique title). |
+| Fullscreen mode | built-in | Press `F` or click the expand icon. Controls bar and flow tabs stay reachable, the side panel too above ~1140px (narrower: a one-line step summary); `Escape` or the button exits. |
+| Self-step (internal work) | built-in | A step with `from === to` draws a loop on the node (above it; below it on the top row). |
+| Three or more modes | small | Add a button to `.modepick`; add `payload<Mode>` / `chips<Mode>` / `data-*-<mode>` fields. `O` cycles through all modes automatically. Mode colors follow button order, not keys: 1st blue, 2nd violet, 3rd+ accent. |
 | Layout reset | built-in | Press `R` or click the ↻ button (appears after any drag). |
 | Progress bar | built-in | Thin bar below player shows step position in current flow. |
 | Flow note line | built-in | Set `note` on a flow (and `onlineNote` on an `onlyMode` flow); it renders under the player. |
@@ -309,7 +307,7 @@ Don't promise features the template doesn't support without flagging the work in
 
 When the user gives feedback like "the diagram is too cramped" or "step 5 is confusing":
 
-- **"Too cramped"** → spread nodes wider; you have 100% width to work with. Don't go below 12% horizontal gap between adjacent nodes.
+- **"Too cramped"** → use the whole grid (Step 3) and shorten `tech`/`port` text; never below 24% between nodes in a row. More than ~12 nodes → split the diagram.
 - **"Confusing step"** → the step description is doing too much. Split into two steps OR rewrite to focus on ONE handoff (X sends Y to Z, that's it).
 - **"It doesn't match how it really works"** → ask for the actual code path. Don't guess; the diagram has zero value if it lies about reality.
 - **"Make it pop more"** → resist. Didactic clarity > visual punch. Maybe one accent element (a glow on the result node when flow completes) but stop there.

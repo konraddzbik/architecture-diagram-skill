@@ -10,42 +10,42 @@
   "nodes": [
     {
       "id": "dev", "role": "user",
-      "position": "left: 2%; top: 40%",
+      "position": "left: 2%; top: 38%",
       "label": { "default": "Developer" },
       "tech":  { "default": "git push · PR" },
       "port":  { "default": "github.com" }
     },
     {
       "id": "ci", "role": "seed",
-      "position": "left: 22%; top: 40%",
+      "position": "left: 26%; top: 38%",
       "label": { "default": "GitHub Actions" },
       "tech":  { "default": "self-hosted runner · arm64" },
       "port":  { "default": "CI" }
     },
     {
       "id": "registry", "role": "vector",
-      "position": "left: 44%; top: 15%",
+      "position": "left: 52%; top: 8%",
       "label": { "default": "Container Registry" },
       "tech":  { "staging": "GitHub Packages", "prod": "AWS ECR" },
       "port":  { "staging": "ghcr.io", "prod": "*.dkr.ecr.amazonaws.com" }
     },
     {
       "id": "deploy", "role": "orch",
-      "position": "left: 44%; top: 65%",
+      "position": "left: 26%; top: 70%",
       "label": { "staging": "ArgoCD (staging)", "prod": "ArgoCD (prod)" },
       "tech":  { "default": "GitOps · Kubernetes" },
       "port":  { "staging": "staging.internal", "prod": "argocd.internal" }
     },
     {
       "id": "cluster", "role": "compute",
-      "position": "left: 68%; top: 40%",
+      "position": "left: 78%; top: 8%",
       "label": { "staging": "Staging Cluster", "prod": "Prod Cluster" },
       "tech":  { "staging": "EKS · 3 nodes", "prod": "EKS · 12 nodes · multi-AZ" },
       "port":  { "staging": "staging.example.com", "prod": "app.example.com" }
     },
     {
       "id": "db", "role": "vector",
-      "position": "left: 88%; top: 40%",
+      "position": "left: 78%; top: 70%",
       "label": { "staging": "Staging DB", "prod": "Prod RDS" },
       "tech":  { "staging": "Postgres 16 · single", "prod": "RDS Postgres · Multi-AZ" },
       "port":  { "staging": ":5432", "prod": "rds.amazonaws.com" }

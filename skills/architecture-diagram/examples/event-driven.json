@@ -10,83 +10,91 @@
   "nodes": [
     {
       "id": "user", "role": "user",
-      "position": "left: 2%; top: 40%",
+      "position": "left: 2%; top: 38%",
       "label": { "default": "Mobile / Web Client" },
       "tech":  { "default": "REST · OpenAPI" },
       "port":  { "default": "api.shop.com" }
     },
     {
       "id": "api", "role": "orch",
-      "position": "left: 22%; top: 40%",
+      "position": "left: 26%; top: 38%",
       "label": { "default": "API Gateway" },
       "tech":  { "default": "Kong · Rate limit · JWT" },
       "port":  { "default": ":443" }
     },
     {
-      "id": "order", "role": "compute",
-      "position": "left: 44%; top: 40%",
+      "id": "order", "role": "orch",
+      "position": "left: 52%; top: 38%",
       "label": { "default": "Order Service" },
       "tech":  { "default": "Go · gRPC + REST" },
       "port":  { "default": ":50051" }
     },
     {
       "id": "kafka", "role": "vector",
-      "position": "left: 64%; top: 40%",
+      "position": "left: 52%; top: 70%",
       "label": { "default": "Kafka" },
-      "tech":  { "default": "topic: orders.events · 6 partitions" },
+      "tech":  { "default": "topic orders.events" },
       "port":  { "default": ":9092" }
     },
     {
-      "id": "billing", "role": "embed",
-      "position": "left: 86%; top: 12%",
+      "id": "billing", "role": "compute",
+      "position": "left: 78%; top: 8%",
       "label": { "default": "Billing Worker" },
       "tech":  { "default": "consumer group: billing" },
       "port":  { "default": "N pods" }
     },
     {
-      "id": "shipping", "role": "embed",
-      "position": "left: 86%; top: 40%",
+      "id": "shipping", "role": "compute",
+      "position": "left: 78%; top: 38%",
       "label": { "default": "Shipping Worker" },
       "tech":  { "default": "consumer group: shipping" },
       "port":  { "default": "N pods" }
     },
     {
-      "id": "notif", "role": "embed",
-      "position": "left: 86%; top: 70%",
+      "id": "notif", "role": "compute",
+      "position": "left: 78%; top: 70%",
       "label": { "default": "Notification Worker" },
       "tech":  { "default": "consumer group: notifications" },
       "port":  { "default": "N pods" }
     },
     {
-      "id": "stripe", "role": "seed",
-      "position": "left: 64%; top: 8%",
+      "id": "stripe", "role": "ext",
+      "position": "left: 52%; top: 8%",
       "label": { "default": "Stripe" },
       "tech":  { "default": "External · REST · idempotency keys" },
       "port":  { "default": "api.stripe.com" }
     },
     {
       "id": "orderdb", "role": "vector",
-      "position": "left: 44%; top: 78%",
-      "label": { "v1_monolith_compat": "Postgres (orders)", "v2_pure_events": "Read Projection (orders)" },
-      "tech":  { "v1_monolith_compat": "RDS Postgres · primary", "v2_pure_events": "Materialized view · eventually consistent" },
+      "position": "left: 26%; top: 70%",
+      "label": { "v1_monolith_compat": "Postgres (orders)", "v2_pure_events": "Orders read model" },
+      "tech":  { "v1_monolith_compat": "RDS Postgres · primary", "v2_pure_events": "Eventually consistent view" },
       "port":  { "default": ":5432" }
     }
   ],
   "flows": [
     {
-      "key": "place_order",
-      "name": "Place Order",
-      "purpose": "Main user action. Differs significantly between v1 and v2 — show both.",
+      "key": "place_order_v1",
+      "name": "Place Order (v1)",
+      "purpose": "Main user action in the transitional state: synchronous DB write, then the event.",
+      "only_mode": "v1_monolith_compat",
       "step_count": 6,
-      "step_outline_v1": [
+      "step_outline": [
         "user → api    : POST /orders",
         "api → order   : gRPC CreateOrder",
         "order → orderdb : INSERT (synchronous)",
         "order → kafka : produce order.created",
         "order → api   : 201 Created",
         "api → user    : 201 Created {order_id}"
-      ],
-      "step_outline_v2": [
+      ]
+    },
+    {
+      "key": "place_order_v2",
+      "name": "Place Order (v2)",
+      "purpose": "Main user action in the target state: event only, persistence happens downstream.",
+      "only_mode": "v2_pure_events",
+      "step_count": 6,
+      "step_outline": [
         "user → api    : POST /orders",
         "api → order   : gRPC CreateOrder",
         "order → kafka : produce order.created (NO direct DB write)",
@@ -122,8 +130,8 @@
   ],
   "lessons": [
     "Fan-out is hard to show clearly. Each consumer becomes a separate flow rather than parallel arrows in one flow. The flow tab bar makes the parallelism obvious by listing them side-by-side.",
-    "The two modes here are MIGRATION states, not deployment environments. This is unusual but valid — modes can be any orthogonal axis as long as it changes payload shape, not topology.",
-    "When you have a mode that changes the SHAPE of a flow this much (6 steps vs 6 different steps), consider whether it should really be the same flow at all. Here it's worth keeping as one flow with mode-swapped payloads because the user story is identical from outside: 'place an order'.",
-    "Stripe is a single named node (role 'seed' since it's external) that only participates in the billing_reaction flow; in every other flow it renders dimmed. Every node referenced by a step must exist on the canvas — don't invent per-flow nodes. Keep externals to the ones that matter; park them in a corner so they don't crowd the mainline."
+    "The two modes here are MIGRATION states, not deployment environments. This is unusual but valid — modes can be any orthogonal axis as long as the node set stays the same — here only orderdb's label and tech change.",
+    "When a mode changes the step SEQUENCE (different from/to or order), it can't be one flow with mode-swapped payloads — every step has one from/to in every mode. Split it into one flow per mode with only_mode (place_order_v1 / place_order_v2): picking either tab switches the mode to match, and switching the mode away falls back to CONFIG.fallbackFlow or the first tab allowed in the new mode (the other place_order flow when its tab comes first). Keep the names parallel so the tab bar reads as one user story: 'place an order'.",
+    "Stripe is a single named node (role 'ext', the External color for 3rd-party systems) that only participates in the billing_reaction flow; in every other flow it renders dimmed. Every node referenced by a step must exist on the canvas — don't invent per-flow nodes. Keep externals to the ones that matter; park them in a corner so they don't crowd the mainline. Roles are color groups: the Order service is 'orch' (API / Service), the three consumers are 'compute' — relabel that legend item to 'Worker' so it doesn't read 'Compute/LLM'."
   ]
 }

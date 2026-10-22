@@ -58,3 +58,6 @@ architecture.md
 *.log
 logs/
 .claude/settings.local.json
+
+# claude plugin eval output
+evals/results/
